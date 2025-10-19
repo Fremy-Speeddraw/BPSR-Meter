@@ -1,0 +1,26 @@
+{
+  "selectedPlayers": [],
+  "filterMode": "all",
+  "playerRegistry": {
+    "641246": {
+      "uid": "641246",
+      "name": "Geonode"
+    }
+  },
+  "isPaused": false,
+  "autoClearOnServerChange": false,
+  "autoClearOnTimeout": true,
+  "onlyRecordEliteDummy": false,
+  "enableFightLog": false,
+  "enableHistorySave": true,
+  "enableDpsLog": false,
+  "language": "en",
+  "availableLanguages": [
+    "en",
+    "zh"
+  ],
+  "manualGroup": {
+    "enabled": true,
+    "members": []
+  }
+}

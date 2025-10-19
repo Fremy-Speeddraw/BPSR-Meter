@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Combat History - BPSR Meter</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+        <style>
+            /* Critical CSS for history window layout */
+            html, body {
+                margin: 0;
+                padding: 0;
+                width: 1125px;
+                height: 875px;
+                max-width: 1125px;
+                max-height: 875px;
+                overflow: hidden;
+            }
+            .history-window {
+                display: flex;
+                flex-direction: column;
+                height: 875px;
+                width: 1125px;
+                max-height: 875px;
+                max-width: 1125px;
+            }
+            .history-window .controls {
+                flex-shrink: 0;
+            }
+            .history-container {
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+            .history-list-section {
+                width: 320px;
+                flex-shrink: 0;
+            }
+            .history-details-section {
+                flex: 1;
+                overflow: hidden;
+            }
+        </style>
+      <script type="module" crossorigin src="/js/history.js"></script>
+      <link rel="modulepreload" crossorigin href="/js/assets/logger-DkynYDV8.js">
+      <link rel="stylesheet" crossorigin href="/assets/logger-gp3yCROJ.css">
+    </head>
+
+    <body>
+        <div class="dps-meter history-window">
+            <header class="controls">
+                <div class="drag-indicator drag-button" id="drag-indicator" title="Move window">
+                    <i class="fa-solid fa-up-down-left-right"></i>
+                </div>
+                <h3 style="margin: 0; flex: 1; text-align: center; font-size: 14px; color: var(--text-primary);">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Combat History
+                </h3>
+                <button class="control-button close-button" id="close-button" title="Close window">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <div class="history-container">
+                <!-- History list section -->
+                <div class="history-list-section">
+                    <div class="history-header">
+                        <button class="control-button" id="refresh-history-btn" title="Refresh history list">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                        <button class="control-button" id="enable-history-btn" title="Enable history saving">
+                            <i class="fa-solid fa-toggle-off"></i> Enable Saving
+                        </button>
+                    </div>
+                    <div id="history-list" class="history-list">
+                        <div class="loading-indicator">
+                            <i class="fa-solid fa-spinner fa-spin"></i>
+                            Loading history...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History details section -->
+                <div class="history-details-section">
+                    <div id="history-details" class="history-details">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-clock-rotate-left" style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;"></i>
+                            <p>Select a combat session to view details</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skill breakdown modal -->
+        <div id="skill-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="skill-modal-title">Skill Breakdown</h3>
+                    <button class="control-button close-button" id="close-skill-modal">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="skill-modal-body" class="modal-body">
+                    <!-- Skill content will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+    </body>
+</html>

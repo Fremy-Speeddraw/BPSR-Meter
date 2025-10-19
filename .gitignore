@@ -1,0 +1,24 @@
+# Dependencies
+/node_modules
+
+# Logs
+/logs
+/logs_dps.json
+dist/logs/
+
+# Build output
+/dist
+
+# TypeScript
+*.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# Misc
+.npmrc
+/Prerequisites/npcap-1.83.exe
+pnpm-lock.yaml
+server - copia - copia.js
+ 
+# Electron packaged output
+dist_electron/
