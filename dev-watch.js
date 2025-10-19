@@ -45,7 +45,6 @@ const assetWatcher = chokidar.watch([
     'translations/**/*',
     'diccionario.json',
     'settings.json',
-    'player_map.json'
 ], {
     ignored: /(^|[\/\\])\../,
     persistent: true
