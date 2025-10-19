@@ -125,6 +125,8 @@ jobs:
         with:
           path: ./artifacts
 
+      
+
       - name: List downloaded artifacts
         run: |
           echo "Artifact structure:"
@@ -159,12 +161,13 @@ jobs:
               # If there's a dist_electron folder, zip its contents at the archive root
               if [ -d "${ASSET_DIR}/dist_electron" ]; then
                 pushd "${ASSET_DIR}/dist_electron" >/dev/null
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . >/dev/null || true
+                # Exclude builder debug and blockmap files from the archive
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" >/dev/null || true
                 popd >/dev/null
               else
-                # Fallback: zip the asset directory contents
+                # Fallback: zip the asset directory contents (exclude debug files)
                 pushd "${ASSET_DIR}" >/dev/null
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . >/dev/null || true
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" >/dev/null || true
                 popd >/dev/null
               fi
               ls -la "release_archives/${os_dir}.zip" || true
@@ -197,6 +200,23 @@ jobs:
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "No tag provided and this is not a tag push (GITHUB_REF=${GITHUB_REF}). Skipping release creation."
 
+      - name: Rename archives with tag and generate checksums
+        if: ${{ steps.tag_step.outputs.skip != 'true' }}
+        run: |
+          mkdir -p release_archives_final
+          TAG=${{ steps.tag_step.outputs.tag }}
+          REPO_NAME=$(basename $GITHUB_REPOSITORY)
+          for f in release_archives/*.zip; do
+            [ -f "$f" ] || continue
+            OSNAME=$(basename "$f" .zip)
+            # include architecture (builds are produced for x64)
+            OUTNAME="${REPO_NAME}-${TAG}-${OSNAME}-x64.zip"
+            cp "$f" "release_archives_final/${OUTNAME}"
+            sha256sum "release_archives_final/${OUTNAME}" | awk '{print $1}' > "release_archives_final/${OUTNAME}.sha256"
+            echo "Produced release_archives_final/${OUTNAME} and checksum"
+          done
+          ls -la release_archives_final || true
+
       - name: Create Draft GitHub Release and upload archives
         if: ${{ steps.tag_step.outputs.skip != 'true' }}
         uses: softprops/action-gh-release@v1
@@ -205,7 +225,7 @@ jobs:
           name: ${{ steps.tag_step.outputs.tag }}
           draft: true
           files: |
-            release_archives/*.zip
+            release_archives_final/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
