@@ -47,28 +47,6 @@ jobs:
             brew install libpcap imagemagick icoutils
           fi
 
-      - name: Generate icon.png from medidor.png (Linux/macOS)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: |
-          echo "Checking for medidor.png"
-          if [ -f medidor.png ]; then
-            echo "medidor.png found - generating icon.png"
-            if command -v convert >/dev/null 2>&1; then
-              convert medidor.png -resize 512x512 icon.png || convert medidor.png -resize 256x256 icon.png
-            elif command -v magick >/dev/null 2>&1; then
-              magick medidor.png -resize 512x512 icon.png || magick medidor.png -resize 256x256 icon.png
-            elif command -v sips >/dev/null 2>&1; then
-              # macOS fallback
-              sips -Z 512 medidor.png --out icon.png
-            else
-              echo "No image conversion tool found (convert/magick/sips). Icon generation skipped."
-            fi
-            ls -la icon.png || true
-          else
-            echo "medidor.png not found in repo root; icon generation skipped"
-          fi
-        shell: bash
-
       - name: Generate icon.ico (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
