@@ -161,13 +161,13 @@ jobs:
               # If there's a dist_electron folder, zip its contents at the archive root
               if [ -d "${ASSET_DIR}/dist_electron" ]; then
                 pushd "${ASSET_DIR}/dist_electron" >/dev/null
-                # Exclude builder debug, blockmap files and win_unpack from the archive
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win_unpack/*" "**/win_unpack/*" >/dev/null || true
+                # Exclude builder debug, blockmap files and win-unpacked from the archive
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" "linux-unpacked/*" "**/linux-unpacked/*" "mac/*" "**/mac/*" >/dev/null || true
                 popd >/dev/null
               else
                 # Fallback: zip the asset directory contents (exclude debug files)
                 pushd "${ASSET_DIR}" >/dev/null
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win_unpack/*" "**/win_unpack/*" >/dev/null || true
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" "linux-unpacked/*" "**/linux-unpacked/*" "mac/*" "**/mac/*" >/dev/null || true
                 popd >/dev/null
               fi
               ls -la "release_archives/${os_dir}.zip" || true
