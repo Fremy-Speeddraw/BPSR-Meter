@@ -153,9 +153,20 @@ jobs:
         run: |
           mkdir -p release_archives
           for os_dir in linux windows macos; do
-            if [ -d "release_assets/${os_dir}" ]; then
+            ASSET_DIR="release_assets/${os_dir}"
+            if [ -d "${ASSET_DIR}" ]; then
               echo "Creating archive for ${os_dir}"
-              zip -r "release_archives/${os_dir}.zip" "release_assets/${os_dir}" >/dev/null || true
+              # If there's a dist_electron folder, zip its contents at the archive root
+              if [ -d "${ASSET_DIR}/dist_electron" ]; then
+                pushd "${ASSET_DIR}/dist_electron" >/dev/null
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . >/dev/null || true
+                popd >/dev/null
+              else
+                # Fallback: zip the asset directory contents
+                pushd "${ASSET_DIR}" >/dev/null
+                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . >/dev/null || true
+                popd >/dev/null
+              fi
               ls -la "release_archives/${os_dir}.zip" || true
             fi
           done
