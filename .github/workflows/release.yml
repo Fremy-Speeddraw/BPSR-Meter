@@ -20,10 +20,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux
+            artifact_name: linux-dist
           - os: windows-latest
             target: win
+            artifact_name: windows-dist
           - os: macos-latest
             target: mac
+            artifact_name: macos-dist
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,11 +51,10 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           # Try multiple Chocolatey package names to install a pcap provider
-          $ErrorActionPreference = 'Stop'
+          $ErrorActionPreference = 'Continue'
           $packages = @(
             @{ name = 'npcap'; args = '-y' },
             @{ name = 'npcap.install'; args = '-y' },
-            @{ name = 'npcap'; args = '-y --pre' },
             @{ name = 'winpcap'; args = '-y' }
           )
 
@@ -61,9 +63,11 @@ jobs:
             Write-Host "Attempting choco install $($p.name) $($p.args)"
             try {
               choco install $($p.name) $($p.args) --no-progress
-              Write-Host "Installed $($p.name)"
-              $installed = $true
-              break
+              if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 1641 -or $LASTEXITCODE -eq 3010) {
+                Write-Host "Installed $($p.name) successfully"
+                $installed = $true
+                break
+              }
             } catch {
               Write-Host "choco install $($p.name) failed: $($_.Exception.Message)"
             }
@@ -75,49 +79,20 @@ jobs:
               if (Get-Command winget -ErrorAction SilentlyContinue) {
                 Write-Host "winget found — attempting winget install Npcap.Npcap"
                 winget install --id Npcap.Npcap -e --accept-package-agreements --accept-source-agreements
-                Write-Host "winget install succeeded"
-                $installed = $true
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "winget install succeeded"
+                  $installed = $true
+                }
               } else {
                 Write-Host "winget not available on this runner"
               }
             } catch {
               Write-Host "winget install failed: $($_.Exception.Message)"
             }
+          }
 
-            if (-not $installed) {
-              Write-Host "winget fallback did not install Npcap. Trying direct download of the official Npcap installer..."
-              $tmp = "$env:TEMP\\npcap-installer.exe"
-              # Try a short list of likely installer versions hosted on nmap.org
-              $urls = @(
-                'https://nmap.org/npcap/dist/npcap-1.73.exe',
-                'https://nmap.org/npcap/dist/npcap-1.72.exe',
-                'https://nmap.org/npcap/dist/npcap-1.71.exe',
-                'https://nmap.org/npcap/dist/npcap-1.55.exe'
-              )
-
-              foreach ($u in $urls) {
-                try {
-                  Write-Host "Attempting download $u"
-                  Invoke-WebRequest -Uri $u -OutFile $tmp -UseBasicParsing -ErrorAction Stop
-                  Write-Host "Downloaded installer to $tmp — running silent install"
-                  $proc = Start-Process -FilePath $tmp -ArgumentList '/S' -Wait -PassThru -NoNewWindow
-                  if ($proc.ExitCode -eq 0) {
-                    Write-Host "Npcap installer exited 0 — assuming install succeeded"
-                    $installed = $true
-                    break
-                  } else {
-                    Write-Host "Npcap installer exited with code $($proc.ExitCode)"
-                  }
-                } catch {
-                  Write-Host "Download or install failed for $u: $($_.Exception.Message)"
-                }
-              }
-
-              if (-not $installed) {
-                Write-Host "Warning: Could not install Npcap via direct download. Native builds may fail. Continuing..."
-                exit 0
-              }
-            }
+          if (-not $installed) {
+            Write-Host "Warning: Could not install Npcap via package managers. Native builds may fail. Continuing..."
           }
         shell: powershell
 
@@ -128,16 +103,16 @@ jobs:
         run: npm run build:all
 
       - name: Package (electron-builder)
-        # Use --${{ matrix.target }} to build the current platform target
         run: npx electron-builder --${{ matrix.target }} --x64 --publish=never
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-dist
+          name: ${{ matrix.artifact_name }}
           path: |
-            dist_electron/**
-            dist/**
+            dist_electron/
+            dist/
+          retention-days: 1
 
   release:
     name: Create Draft Release and Attach Assets
@@ -147,41 +122,54 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Download Linux artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ubuntu-latest-dist
-          path: ./artifacts/linux || ./artifacts/linux
-
-      - name: Download Windows artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-latest-dist
-          path: ./artifacts/windows || ./artifacts/windows
-
-      - name: Download macOS artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: macos-latest-dist
-          path: ./artifacts/macos || ./artifacts/macos
+          path: ./artifacts
 
       - name: List downloaded artifacts
         run: |
-          echo "Linux files:" && ls -la artifacts/linux || true
-          echo "Windows files:" && ls -la artifacts/windows || true
-          echo "macOS files:" && ls -la artifacts/macos || true
+          echo "Artifact structure:"
+          find ./artifacts -type f -name "*" | head -20
+          echo "Total files found:"
+          find ./artifacts -type f | wc -l
+
+      - name: Prepare release assets
+        run: |
+          # Create a clean releases directory
+          mkdir -p release_assets
+          
+          # Copy and organize artifacts with better naming
+          for os_dir in linux windows macos; do
+            if [ -d "./artifacts/${os_dir}-dist" ]; then
+              mkdir -p "release_assets/${os_dir}"
+              cp -r "./artifacts/${os_dir}-dist"/* "release_assets/${os_dir}/" 2>/dev/null || true
+            fi
+          done
+          
+          echo "Final release assets structure:"
+          ls -la release_assets/
+          find release_assets/ -type f | head -20
+
+      - name: Determine release tag
+        id: tag_step
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+          echo "Using tag: ${{ steps.tag_step.outputs.tag }}"
 
       - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
-          # Prefer the manual input tag_name when provided, otherwise use the git ref name
-          tag_name: ${{ github.event.inputs.tag_name != '' && github.event.inputs.tag_name || github.ref_name }}
-          name: ${{ github.event.inputs.tag_name != '' && github.event.inputs.tag_name || github.ref_name }}
+          tag_name: ${{ steps.tag_step.outputs.tag }}
+          name: ${{ steps.tag_step.outputs.tag }}
           draft: true
           files: |
-            artifacts/linux/**
-            artifacts/windows/**
-            artifacts/macos/**
+            release_assets/**/*
+            release_assets/**/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
