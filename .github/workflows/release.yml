@@ -27,6 +27,25 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install system dependencies (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential libpcap-dev pkg-config python3
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            brew update
+            brew install libpcap
+          fi
+
+      - name: Install system dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Install npcap (WinPcap replacement) to provide pcap headers for native modules
+          choco install npcap -y
+          # choco is available on the Windows runner; allow failure on optional packages
+        shell: powershell
+
       - name: Install dependencies
         run: npm ci
 
