@@ -149,6 +149,18 @@ jobs:
           ls -la release_assets/
           find release_assets/ -type f | head -20
 
+      - name: Compress release assets into zips
+        run: |
+          mkdir -p release_archives
+          for os_dir in linux windows macos; do
+            if [ -d "release_assets/${os_dir}" ]; then
+              echo "Creating archive for ${os_dir}"
+              zip -r "release_archives/${os_dir}.zip" "release_assets/${os_dir}" >/dev/null || true
+              ls -la "release_archives/${os_dir}.zip" || true
+            fi
+          done
+          echo "Archives produced:" && ls -la release_archives || true
+
       - name: Determine release tag
         id: tag_step
         run: |
@@ -174,7 +186,7 @@ jobs:
           echo "skip=true" >> $GITHUB_OUTPUT
           echo "No tag provided and this is not a tag push (GITHUB_REF=${GITHUB_REF}). Skipping release creation."
 
-      - name: Create Draft GitHub Release and upload artifacts
+      - name: Create Draft GitHub Release and upload archives
         if: ${{ steps.tag_step.outputs.skip != 'true' }}
         uses: softprops/action-gh-release@v1
         with:
@@ -182,8 +194,7 @@ jobs:
           name: ${{ steps.tag_step.outputs.tag }}
           draft: true
           files: |
-            release_assets/**/*
-            release_assets/**/**/*
+            release_archives/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
