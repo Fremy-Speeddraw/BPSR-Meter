@@ -12,7 +12,7 @@ const execAsync = promisify(exec);
 let isBuilding = false;
 let buildQueued = false;
 
-console.log('🔥 Starting development watch mode...\n');
+console.log('Starting development watch mode...\n');
 
 // Initial build
 await runBuild();
@@ -52,7 +52,7 @@ const assetWatcher = chokidar.watch([
 
 assetWatcher
     .on('change', async (path) => {
-        console.log(`\n📦 Asset changed: ${path}`);
+        console.log(`\nAsset changed: ${path}`);
         await copyAssets();
     });
 
@@ -63,16 +63,16 @@ async function runBuild() {
     }
 
     isBuilding = true;
-    console.log('🔨 Building TypeScript...');
+    console.log('Building TypeScript...');
 
     try {
         const startTime = Date.now();
         await execAsync('npx tsc');
         await copyAssets();
         const duration = Date.now() - startTime;
-        console.log(`✅ Build completed in ${duration}ms\n`);
+        console.log(`Build completed in ${duration}ms\n`);
     } catch (error) {
-        console.error('❌ Build failed:', error.message);
+        console.error('Build failed:', error.message);
     } finally {
         isBuilding = false;
         
@@ -87,7 +87,7 @@ async function copyAssets() {
     try {
         await execAsync('node build-copy-assets.js');
     } catch (error) {
-        console.error('❌ Asset copy failed:', error.message);
+        console.error('Asset copy failed:', error.message);
     }
 }
 
@@ -104,7 +104,7 @@ async function debouncedBuild() {
 
 // Handle cleanup
 process.on('SIGINT', () => {
-    console.log('\n\n🛑 Stopping watch mode...');
+    console.log('\n\nStopping watch mode...');
     watcher.close();
     assetWatcher.close();
     process.exit(0);

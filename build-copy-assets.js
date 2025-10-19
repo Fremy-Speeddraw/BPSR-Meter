@@ -21,7 +21,8 @@ const dirsToCopy = [
 // Individual files to copy
 const filesToCopy = [
     'settings.json',
-    'icon.ico'
+    'icon.ico',
+    'icon.png'
 ];
 
 // Create dist directory if it doesn't exist

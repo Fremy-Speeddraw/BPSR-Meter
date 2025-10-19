@@ -2,6 +2,7 @@
     "name": "bpsr-meter",
     "version": "1.0.0",
     "description": "BPSR Meter",
+    "author": "Fremy-Speeddraw",
     "type": "module",
     "main": "dist/electron-main.js",
     "bin": {
@@ -83,9 +84,7 @@
             "settings.json",
             "users.json",
             "icon.ico",
-            "icon.png",
-            "medidor.png",
-            "portada.png"
+            "icon.png"
         ],
         "extraResources": [
             {
@@ -96,6 +95,13 @@
                 ]
             }
         ],
+        "linux": {
+            "icon": "icon.png",
+            "target": [
+                "AppImage"
+            ],
+            "category": "Utility"
+        },
         "win": {
             "icon": "icon.ico",
             "target": [

@@ -41,11 +41,69 @@ jobs:
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
             sudo apt-get update
-            sudo apt-get install -y build-essential libpcap-dev pkg-config python3
+            sudo apt-get install -y build-essential libpcap-dev pkg-config python3 imagemagick librsvg2-bin libgdk-pixbuf2.0-0 icoutils libpng-dev pngcrush
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             brew update
-            brew install libpcap
+            brew install libpcap imagemagick icoutils
           fi
+
+      - name: Generate icon.png from medidor.png (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        run: |
+          echo "Checking for medidor.png"
+          if [ -f medidor.png ]; then
+            echo "medidor.png found - generating icon.png"
+            if command -v convert >/dev/null 2>&1; then
+              convert medidor.png -resize 512x512 icon.png || convert medidor.png -resize 256x256 icon.png
+            elif command -v magick >/dev/null 2>&1; then
+              magick medidor.png -resize 512x512 icon.png || magick medidor.png -resize 256x256 icon.png
+            elif command -v sips >/dev/null 2>&1; then
+              # macOS fallback
+              sips -Z 512 medidor.png --out icon.png
+            else
+              echo "No image conversion tool found (convert/magick/sips). Icon generation skipped."
+            fi
+            ls -la icon.png || true
+          else
+            echo "medidor.png not found in repo root; icon generation skipped"
+          fi
+        shell: bash
+
+      - name: Generate icon.ico (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          if [ -f icon.png ]; then
+            echo "Generating icon.ico from icon.png"
+            # create multiple sizes inside ico
+            convert icon.png -background none -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico || convert icon.png -resize 256x256 icon.ico
+            ls -la icon.ico || true
+          else
+            echo "icon.png missing, skipping icon.ico generation"
+          fi
+
+      - name: Generate icon.icns (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          if [ -f icon.png ]; then
+            echo "Generating icon.icns from icon.png"
+            rm -rf icon.iconset || true
+            mkdir -p icon.iconset
+            sips -z 16 16 icon.png --out icon.iconset/icon_16x16.png
+            sips -z 32 32 icon.png --out icon.iconset/icon_16x16@2x.png
+            sips -z 32 32 icon.png --out icon.iconset/icon_32x32.png
+            sips -z 64 64 icon.png --out icon.iconset/icon_32x32@2x.png
+            sips -z 128 128 icon.png --out icon.iconset/icon_128x128.png
+            sips -z 256 256 icon.png --out icon.iconset/icon_128x128@2x.png
+            sips -z 256 256 icon.png --out icon.iconset/icon_256x256.png
+            sips -z 512 512 icon.png --out icon.iconset/icon_256x256@2x.png
+            sips -z 512 512 icon.png --out icon.iconset/icon_512x512.png
+            sips -z 1024 1024 icon.png --out icon.iconset/icon_512x512@2x.png
+            iconutil -c icns icon.iconset -o icon.icns || true
+            ls -la icon.icns || true
+          else
+            echo "icon.png missing, skipping icon.icns generation"
+          fi
+        shell: bash
 
       - name: Install system dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -159,7 +217,11 @@ jobs:
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
-          echo "Using tag: ${{ steps.tag_step.outputs.tag }}"
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            echo "Using tag: ${{ github.event.inputs.tag_name }}"
+          else
+            echo "Using tag: ${GITHUB_REF#refs/tags/}"
+          fi
 
       - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
