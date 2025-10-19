@@ -86,40 +86,9 @@ jobs:
       - name: Install system dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-            # Install Npcap directly from the official source
-            $ErrorActionPreference = 'Continue'
-            
-            Write-Host "Downloading and installing Npcap directly..."
-            
-            # Download the latest Npcap installer
-            $npcapUrl = "https://npcap.com/dist/npcap-1.78.exe"
-            $installerPath = "$env:TEMP\npcap-installer.exe"
-            
-            try {
-                # Download Npcap
-                Invoke-WebRequest -Uri $npcapUrl -OutFile $installerPath
-                Write-Host "Downloaded Npcap installer successfully"
-                
-                # Install silently
-                Write-Host "Installing Npcap silently..."
-                $process = Start-Process -FilePath $installerPath -ArgumentList "/S" -Wait -PassThru -NoNewWindow
-                
-                if ($process.ExitCode -eq 0) {
-                    Write-Host "Npcap installed successfully"
-                } else {
-                    Write-Host "Npcap installer exited with code: $($process.ExitCode)"
-                    Write-Host "This might be normal for Npcap - continuing build..."
-                }
-                
-                # Clean up
-                Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-                
-            } catch {
-                Write-Host "Npcap installation failed: $($_.Exception.Message)"
-                Write-Host "This might not be critical for the build - continuing..."
-            }
-            
-            Write-Host "Npcap installation process completed"
+            Write-Host "Skipping Npcap installation for CI build"
+            Write-Host "If packet capture functionality is needed, users should install Npcap manually"
+            Write-Host "from https://npcap.com/#download"
         shell: pwsh
 
       - name: Install dependencies
