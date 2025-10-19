@@ -47,9 +47,78 @@ jobs:
       - name: Install system dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          # Install npcap (WinPcap replacement) to provide pcap headers for native modules
-          choco install npcap -y
-          # choco is available on the Windows runner; allow failure on optional packages
+          # Try multiple Chocolatey package names to install a pcap provider
+          $ErrorActionPreference = 'Stop'
+          $packages = @(
+            @{ name = 'npcap'; args = '-y' },
+            @{ name = 'npcap.install'; args = '-y' },
+            @{ name = 'npcap'; args = '-y --pre' },
+            @{ name = 'winpcap'; args = '-y' }
+          )
+
+          $installed = $false
+          foreach ($p in $packages) {
+            Write-Host "Attempting choco install $($p.name) $($p.args)"
+            try {
+              choco install $($p.name) $($p.args) --no-progress
+              Write-Host "Installed $($p.name)"
+              $installed = $true
+              break
+            } catch {
+              Write-Host "choco install $($p.name) failed: $($_.Exception.Message)"
+            }
+          }
+
+          if (-not $installed) {
+            Write-Host "No Chocolatey pcap package installed. Trying winget as a fallback..."
+            try {
+              if (Get-Command winget -ErrorAction SilentlyContinue) {
+                Write-Host "winget found — attempting winget install Npcap.Npcap"
+                winget install --id Npcap.Npcap -e --accept-package-agreements --accept-source-agreements
+                Write-Host "winget install succeeded"
+                $installed = $true
+              } else {
+                Write-Host "winget not available on this runner"
+              }
+            } catch {
+              Write-Host "winget install failed: $($_.Exception.Message)"
+            }
+
+            if (-not $installed) {
+              Write-Host "winget fallback did not install Npcap. Trying direct download of the official Npcap installer..."
+              $tmp = "$env:TEMP\\npcap-installer.exe"
+              # Try a short list of likely installer versions hosted on nmap.org
+              $urls = @(
+                'https://nmap.org/npcap/dist/npcap-1.73.exe',
+                'https://nmap.org/npcap/dist/npcap-1.72.exe',
+                'https://nmap.org/npcap/dist/npcap-1.71.exe',
+                'https://nmap.org/npcap/dist/npcap-1.55.exe'
+              )
+
+              foreach ($u in $urls) {
+                try {
+                  Write-Host "Attempting download $u"
+                  Invoke-WebRequest -Uri $u -OutFile $tmp -UseBasicParsing -ErrorAction Stop
+                  Write-Host "Downloaded installer to $tmp — running silent install"
+                  $proc = Start-Process -FilePath $tmp -ArgumentList '/S' -Wait -PassThru -NoNewWindow
+                  if ($proc.ExitCode -eq 0) {
+                    Write-Host "Npcap installer exited 0 — assuming install succeeded"
+                    $installed = $true
+                    break
+                  } else {
+                    Write-Host "Npcap installer exited with code $($proc.ExitCode)"
+                  }
+                } catch {
+                  Write-Host "Download or install failed for $u: $($_.Exception.Message)"
+                }
+              }
+
+              if (-not $installed) {
+                Write-Host "Warning: Could not install Npcap via direct download. Native builds may fail. Continuing..."
+                exit 0
+              }
+            }
+          }
         shell: powershell
 
       - name: Install dependencies
