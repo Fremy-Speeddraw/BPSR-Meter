@@ -53,48 +53,48 @@ jobs:
           # Try multiple Chocolatey package names to install a pcap provider
           $ErrorActionPreference = 'Continue'
           $packages = @(
-            @{ name = 'npcap'; args = '-y' },
-            @{ name = 'npcap.install'; args = '-y' },
-            @{ name = 'winpcap'; args = '-y' }
+          @{ name = 'npcap'; args = '-y' },
+          @{ name = 'npcap.install'; args = '-y' },
+          @{ name = 'winpcap'; args = '-y' }
           )
-
+  
           $installed = $false
           foreach ($p in $packages) {
-            Write-Host "Attempting choco install $($p.name) $($p.args)"
-            try {
+          Write-Host "Attempting choco install $($p.name) $($p.args)"
+          try {
               choco install $($p.name) $($p.args) --no-progress
               if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 1641 -or $LASTEXITCODE -eq 3010) {
-                Write-Host "Installed $($p.name) successfully"
-                $installed = $true
-                break
+              Write-Host "Installed $($p.name) successfully"
+              $installed = $true
+              break
               }
-            } catch {
+          } catch {
               Write-Host "choco install $($p.name) failed: $($_.Exception.Message)"
-            }
           }
-
+          }
+  
           if (-not $installed) {
-            Write-Host "No Chocolatey pcap package installed. Trying winget as a fallback..."
-            try {
+          Write-Host "No Chocolatey pcap package installed. Trying winget as a fallback..."
+          try {
               if (Get-Command winget -ErrorAction SilentlyContinue) {
-                Write-Host "winget found — attempting winget install Npcap.Npcap"
-                winget install --id Npcap.Npcap -e --accept-package-agreements --accept-source-agreements
-                if ($LASTEXITCODE -eq 0) {
+              Write-Host "winget found - attempting winget install Npcap.Npcap"
+              winget install --id Npcap.Npcap -e --accept-package-agreements --accept-source-agreements
+              if ($LASTEXITCODE -eq 0) {
                   Write-Host "winget install succeeded"
                   $installed = $true
-                }
-              } else {
-                Write-Host "winget not available on this runner"
               }
-            } catch {
+              } else {
+              Write-Host "winget not available on this runner"
+              }
+          } catch {
               Write-Host "winget install failed: $($_.Exception.Message)"
-            }
           }
-
+          }
+  
           if (-not $installed) {
-            Write-Host "Warning: Could not install Npcap via package managers. Native builds may fail. Continuing..."
+          Write-Host "Warning: Could not install Npcap via package managers. Native builds may fail. Continuing..."
           }
-        shell: powershell
+        shell: pwsh
 
       - name: Install dependencies
         run: npm ci
