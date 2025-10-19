@@ -149,18 +149,30 @@ jobs:
       - name: Determine release tag
         id: tag_step
         run: |
+          # If the user supplied a tag_name input, use it.
           if [ -n "${{ github.event.inputs.tag_name }}" ]; then
             echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
             echo "Using tag: ${{ github.event.inputs.tag_name }}"
-          else
-            echo "Using tag: ${GITHUB_REF#refs/tags/}"
+            exit 0
           fi
 
+          # If this run was triggered by a tag push, extract the tag name.
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            echo "tag=${TAG_NAME}" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Using tag from push: ${TAG_NAME}"
+            exit 0
+          fi
+
+          # Not a tag push and no input provided — skip release creation to avoid attempts to release a branch ref.
+          echo "tag=" >> $GITHUB_OUTPUT
+          echo "skip=true" >> $GITHUB_OUTPUT
+          echo "No tag provided and this is not a tag push (GITHUB_REF=${GITHUB_REF}). Skipping release creation."
+
       - name: Create Draft GitHub Release and upload artifacts
+        if: ${{ steps.tag_step.outputs.skip != 'true' }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag_step.outputs.tag }}
