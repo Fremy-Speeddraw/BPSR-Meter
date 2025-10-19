@@ -1,0 +1,94 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+          - os: windows-latest
+            target: win
+          - os: macos-latest
+            target: mac
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer and TypeScript
+        run: npm run build:all
+
+      - name: Package (electron-builder)
+        # Use --${{ matrix.target }} to build the current platform target
+        run: npx electron-builder --${{ matrix.target }} --x64 --publish=never
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-dist
+          path: |
+            dist_electron/**
+            dist/**
+
+  release:
+    name: Create Draft Release and Attach Assets
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ubuntu-latest-dist
+          path: ./artifacts/linux || ./artifacts/linux
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-latest-dist
+          path: ./artifacts/windows || ./artifacts/windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-latest-dist
+          path: ./artifacts/macos || ./artifacts/macos
+
+      - name: List downloaded artifacts
+        run: |
+          echo "Linux files:" && ls -la artifacts/linux || true
+          echo "Windows files:" && ls -la artifacts/windows || true
+          echo "macOS files:" && ls -la artifacts/macos || true
+
+      - name: Create Draft GitHub Release and upload artifacts
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          draft: true
+          files: |
+            artifacts/linux/**
+            artifacts/windows/**
+            artifacts/macos/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Done
+        run: echo "Release created (draft) with artifacts attached."
