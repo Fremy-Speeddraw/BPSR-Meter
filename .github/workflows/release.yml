@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag to release (optional). If empty, the pushed tag name will be used.'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -99,8 +105,9 @@ jobs:
       - name: Create Draft GitHub Release and upload artifacts
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          # Prefer the manual input tag_name when provided, otherwise use the git ref name
+          tag_name: ${{ github.event.inputs.tag_name != '' && github.event.inputs.tag_name || github.ref_name }}
+          name: ${{ github.event.inputs.tag_name != '' && github.event.inputs.tag_name || github.ref_name }}
           draft: true
           files: |
             artifacts/linux/**
