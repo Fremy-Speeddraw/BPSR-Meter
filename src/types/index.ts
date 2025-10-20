@@ -84,6 +84,9 @@ export interface GlobalSettings {
         group?: { width: number; height: number };
         history?: { width: number; height: number };
     };
+    // Timestamps to track when pause/resume happened (milliseconds since epoch)
+    lastPausedAt?: number | null;
+    lastResumedAt?: number | null;
 }
 
 export interface ApiResponse<T = any> {

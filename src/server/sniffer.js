@@ -71,7 +71,32 @@ class Sniffer {
     }
 
     setPaused(paused) {
-        this.isPaused = paused;
+        // Toggle paused state. When resuming, reset detection buffers and state so
+        // server detection can happen immediately instead of waiting several seconds.
+        const wasPaused = this.isPaused;
+        this.isPaused = !!paused;
+        if (wasPaused && !this.isPaused) {
+            // clear TCP assembly state and fragment caches to force fresh detection
+            try {
+                this.clearTcpCache();
+                this.fragmentIpCache.clear();
+                this.current_server = '';
+                this.tcp_cache.clear && this.tcp_cache.clear();
+                this.tcp_next_seq = -1;
+                this.tcp_last_time = 0;
+                // Refresh enemy cache to ensure state is consistent
+                try {
+                    this.userDataManager && this.userDataManager.refreshEnemyCache && this.userDataManager.refreshEnemyCache();
+                } catch (e) {}
+                this.logger.info('Sniffer resumed: detection state reset for faster server detection');
+            } catch (e) {
+                this.logger.warn('Error while resetting sniffer state on resume:', e);
+            }
+        }
+    }
+
+    getPaused() {
+        return this.isPaused;
     }
 
     clearTcpCache() {
@@ -186,8 +211,22 @@ class Sniffer {
                                         this.tcp_next_seq = tcpPacket.info.seqno + buf.length;
                                         this.userDataManager.refreshEnemyCache();
                                         if (this.globalSettings.autoClearOnServerChange && this.userDataManager.lastLogTime !== 0 && this.userDataManager.users.size !== 0) {
-                                            this.userDataManager.clearAll(this.globalSettings);
-                                            console.log('Server changed, statistics cleared!');
+                                            // If there was a pause then a subsequent resume, skip auto-clear to avoid
+                                            // erasing data after a manual pause/resume cycle.
+                                            const lp = this.globalSettings.lastPausedAt || 0;
+                                            const lr = this.globalSettings.lastResumedAt || 0;
+                                            const wasPausedThenResumed = lp > 0 && lr > lp;
+                                            if (!wasPausedThenResumed) {
+                                                this.userDataManager.clearAll(this.globalSettings);
+                                                console.log('Server changed, statistics cleared!');
+                                            } else {
+                                                console.log('Server changed detected but skip clear because pause->resume was observed.');
+                                            }
+                                            // Reset pause/resume markers so they don't affect future checks
+                                            try {
+                                                this.globalSettings.lastPausedAt = null;
+                                                this.globalSettings.lastResumedAt = null;
+                                            } catch (e) {}
                                         }
                                         console.log('Game server detected. Measuring DPS...');
                                     }
@@ -214,8 +253,20 @@ class Sniffer {
                                 this.tcp_next_seq = tcpPacket.info.seqno + buf.length;
                                 this.userDataManager.refreshEnemyCache();
                                 if (this.globalSettings.autoClearOnServerChange && this.userDataManager.lastLogTime !== 0 && this.userDataManager.users.size !== 0) {
-                                    this.userDataManager.clearAll(this.globalSettings);
-                                    console.log('Server changed, statistics cleared!');
+                                    const lp = this.globalSettings.lastPausedAt || 0;
+                                    const lr = this.globalSettings.lastResumedAt || 0;
+                                    const wasPausedThenResumed = lp > 0 && lr > lp;
+                                    if (!wasPausedThenResumed) {
+                                        this.userDataManager.clearAll(this.globalSettings);
+                                        console.log('Server changed, statistics cleared!');
+                                    } else {
+                                        console.log('Server changed detected but skip clear because pause->resume was observed.');
+                                    }
+                                    // Reset pause/resume markers so they don't affect future checks
+                                    try {
+                                        this.globalSettings.lastPausedAt = null;
+                                        this.globalSettings.lastResumedAt = null;
+                                    } catch (e) {}
                                 }
                                 console.log('Game server detected by login packet. Measuring DPS...');
                             }
@@ -253,7 +304,7 @@ class Sniffer {
                     const packet = this._data.subarray(0, packetSize);
                     this._data = this._data.subarray(packetSize);
                     if (this.packetProcessor) {
-                        this.packetProcessor.processPacket(packet, this.isPaused, this.globalSettings); // Pasar isPaused y globalSettings
+                        this.packetProcessor.processPacket(packet, this.isPaused, this.globalSettings);
                     }
                 } else if (packetSize > 0x0fffff) {
                     this.logger.error(`Invalid Length!! ${this._data.length},${packetSize},${this._data.toString('hex')},${this.tcp_next_seq}`);
@@ -330,6 +381,7 @@ class Sniffer {
                     clearedFragments++;
                 }
             }
+
             if (clearedFragments > 0) {
                 this.logger.debug(`Cleared ${clearedFragments} expired IP fragment caches`);
             }
@@ -339,7 +391,7 @@ class Sniffer {
                 this.current_server = '';
                 this.clearTcpCache();
             }
-        }, 10000);
+        }, 1000);
     }
 }
 

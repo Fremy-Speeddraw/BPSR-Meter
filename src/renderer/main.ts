@@ -16,6 +16,9 @@ let isScrolling: boolean = false;
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
 let manualGroupState: ManualGroupState = { enabled: false, members: [] };
 let playerRegistryCache: PlayerRegistry = {};
+// Pause control for data loop
+let isPaused = false;
+let dataLoopInterval: ReturnType<typeof setInterval> | null = null;
 
 // Main initialization
 document.addEventListener('DOMContentLoaded', async () => {
@@ -65,7 +68,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupElectronFeatures();
     }
 
-    // Start data fetching loop
+    // Sync pause state from server and then start data fetching loop
+    await syncServerPauseState();
     startDataLoop();
 });
 
@@ -96,6 +100,51 @@ function setupEventListeners(): void {
     const syncBtn = document.getElementById('sync-button');
     if (syncBtn) {
         syncBtn.addEventListener('click', handleSync);
+    }
+
+    // Pause button
+    const pauseBtn = document.getElementById('pause-button');
+    if (pauseBtn) {
+        pauseBtn.addEventListener('click', async () => {
+            // Toggle local paused state
+            isPaused = !isPaused;
+            updatePauseButtonUI();
+
+            // Stop/Start local polling immediately
+            if (isPaused) {
+                if (dataLoopInterval) {
+                    clearInterval(dataLoopInterval);
+                    dataLoopInterval = null;
+                }
+            } else {
+                startDataLoop();
+            }
+
+            // Notify server about pause/resume so it stops accumulating data server-side
+            try {
+                const resp = await fetch('/api/pause', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paused: isPaused })
+                });
+                const json = await resp.json();
+                if (json && typeof json.paused === 'boolean') {
+                    // Sync local state with authoritative server response in case of mismatch
+                    isPaused = json.paused;
+                    updatePauseButtonUI();
+                    if (isPaused) {
+                        if (dataLoopInterval) {
+                            clearInterval(dataLoopInterval);
+                            dataLoopInterval = null;
+                        }
+                    } else {
+                        startDataLoop();
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to update server pause state:', err);
+            }
+        });
     }
 
     // Sort buttons
@@ -509,6 +558,32 @@ function updateClickThroughState(): void {
     }
 }
 
+function updatePauseButtonUI(): void {
+    const pauseBtn = document.getElementById('pause-button');
+    if (!pauseBtn) return;
+    if (isPaused) {
+        pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        pauseBtn.title = 'Resume updates';
+    } else {
+        pauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        pauseBtn.title = 'Pause updates';
+    }
+}
+
+// Sync pause state from server on startup
+async function syncServerPauseState(): Promise<void> {
+    try {
+        const resp = await fetch('/api/pause');
+        const json = await resp.json();
+        if (json && typeof json.paused === 'boolean') {
+            isPaused = json.paused;
+            updatePauseButtonUI();
+        }
+    } catch (err) {
+        console.error('Failed to fetch server pause state:', err);
+    }
+}
+
 function updateUITranslations(): void {
     // Update UI elements with translated text
     // This would be a comprehensive function that updates all UI text
@@ -553,7 +628,13 @@ async function addPlayerToRegistry(uid: string, name: string): Promise<void> {
 
 function startDataLoop(): void {
     fetchDataAndRender();
-    setInterval(fetchDataAndRender, 50);
+    if (dataLoopInterval) {
+        clearInterval(dataLoopInterval);
+        dataLoopInterval = null;
+    }
+    if (!isPaused) {
+        dataLoopInterval = setInterval(fetchDataAndRender, 50);
+    }
 
     // Refresh group state every 2 seconds
     setInterval(async () => {
@@ -677,10 +758,6 @@ async function fetchDataAndRender(): Promise<void> {
             if (userArray.length > 10 && !isLocalInTop10) {
                 localUserExtra = userArray.find((u: any) => u.uid === localUid);
             }
-
-            if (userArray.length > 10) {
-                userArray = top10;
-            }
         }
 
         if (localUserExtra) {
@@ -721,35 +798,6 @@ function sortUserArray(userArray: any[]): void {
         }
 
         return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
-}
-
-function renderPlayers(players: PlayerData[]): void {
-    // Sort players
-    const sorted = sortPlayers(players);
-
-    // Render player bars
-    const container = document.getElementById('player-bars-container');
-    if (!container) return;
-
-    container.innerHTML = '';
-
-    sorted.forEach(player => {
-        const bar = createPlayerBar(player);
-        container.appendChild(bar);
-    });
-}
-
-function sortPlayers(players: PlayerData[]): PlayerData[] {
-    return [...players].sort((a, b) => {
-        let aVal = a[sortColumn] || 0;
-        let bVal = b[sortColumn] || 0;
-
-        if (typeof aVal === 'number' && typeof bVal === 'number') {
-            return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
-        }
-
-        return 0;
     });
 }
 
@@ -819,36 +867,79 @@ function getPositionBackgroundColor(index: number): string {
     return positionBackgroundColors[index] || positionBackgroundColors[9];
 }
 
-function createPlayerBar(player: PlayerData): HTMLDivElement {
-    const bar = document.createElement('div');
-    bar.className = 'player-bar';
+function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: number | null): void {
+    const existingContainer = container.querySelector('.dps-meter-container') as HTMLElement;
+    
+    // Check if we need to rebuild by comparing current state with new data
+    let needsRebuild = !existingContainer;
+    
+    if (existingContainer) {
+        const currentUserCount = parseInt(existingContainer.dataset.userCount || '0');
+        const currentViewMode = existingContainer.dataset.viewMode;
+        
+        // Rebuild if user count changed significantly, view mode changed, or players are completely different
+        needsRebuild = needsRebuild || 
+                      currentUserCount !== userArray.length ||
+                      currentViewMode !== viewMode ||
+                      hasMajorPlayerChanges(existingContainer, userArray) ||
+                      hasRankOrderChanged(existingContainer, userArray);
+    }
 
-    // Get profession info - prefer sub-profession for icon if available
-    const professionParts = (player.profession || '-').split('-');
-    const subProfessionKey = professionParts[1];
-    const mainProfessionKey = professionParts[0];
-    const profInfo = subProfessionKey
-        ? getProfessionInfo(subProfessionKey)
-        : getProfessionInfo(mainProfessionKey);
-
-    bar.innerHTML = `
-        <div class="player-info">
-            <img src="icons/${profInfo.icon}" class="profession-icon" alt="${profInfo.name}">
-            <span class="player-name">${player.name}</span>
-        </div>
-        <div class="player-stats">
-            <span class="stat-dmg">${formatStat(player.totalDmg)}</span>
-            <span class="stat-dps">${formatDPS(player.realtimeDps)}</span>
-        </div>
-    `;
-
-    return bar;
+    if (needsRebuild) {
+        buildPlayerBarsDOM(container, userArray, localUid);
+    } else {
+        updatePlayerBarsValues(container, userArray, localUid);
+    }
 }
 
-function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: number | null): void {
-    container.innerHTML = `
-        <div class="dps-meter-container" data-user-count="${userArray.length}">
-            ${userArray.map((u: any, index: number) => {
+function hasRankOrderChanged(container: HTMLElement, userArray: any[]): boolean {
+    const currentPlayerBars = Array.from(container.querySelectorAll('.player-bar'));
+    
+    // If the number of players doesn't match, definitely rebuild
+    if (currentPlayerBars.length !== userArray.length) {
+        return true;
+    }
+    
+    // Check if the order of players has changed significantly
+    let orderChangeCount = 0;
+    
+    for (let i = 0; i < userArray.length; i++) {
+        const expectedUid = String(userArray[i].uid);
+        const currentBar = currentPlayerBars[i];
+        const currentUid = currentBar.getAttribute('data-uid');
+        
+        if (currentUid !== expectedUid) {
+            orderChangeCount++;
+        }
+        
+        // If more than 20% of players are in wrong positions, rebuild
+        if (orderChangeCount > userArray.length * 0.2) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Helper function to detect if players have changed significantly
+function hasMajorPlayerChanges(container: HTMLElement, userArray: any[]): boolean {
+    const currentUids = Array.from(container.querySelectorAll('.player-bar'))
+        .map(bar => bar.getAttribute('data-uid'))
+        .filter(uid => uid !== null);
+    
+    const newUids = userArray.map(u => String(u.uid));
+    
+    // If more than 30% of players are different, rebuild
+    const commonUids = currentUids.filter(uid => newUids.includes(uid));
+    const changeRatio = 1 - (commonUids.length / Math.max(currentUids.length, newUids.length));
+    
+    return changeRatio > 0.3;
+}
+
+function buildPlayerBarsDOM(container: HTMLElement, userArray: any[], localUid: number | null): void {
+    let html = `<div class="dps-meter-container" data-user-count="${userArray.length}" data-view-mode="${viewMode}">`;
+
+    userArray.forEach((u: any, index: number) => {
         const professionParts = (u.profession || '-').split('-');
         const mainProfessionKey = professionParts[0];
         const subProfessionKey = professionParts[1];
@@ -871,7 +962,7 @@ function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: nu
         const peak = (u.realtime_dps_max !== undefined) ? u.realtime_dps_max : 0;
         const dps = Number(u.total_dps) || 0;
         const totalHealing = u.total_healing ? (Number(u.total_healing.total) || 0) : 0;
-        const nombre = getPlayerName(String(u.uid), u.name);
+        const name = getPlayerName(u.uid, u.name);
         const hpPercent = ((u.hp || 0) / (u.max_hp || 1)) * 100;
         const hpColor = hpPercent > 50 ? '#1db954' : hpPercent > 25 ? '#f39c12' : '#e74c3c';
         const bgColor = getPositionBackgroundColor(index);
@@ -892,15 +983,15 @@ function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: nu
             positionClasses += ' local-player';
         }
 
-        return `<div class="player-bar" data-rank="${u.rank}" data-uid="${u.uid}" data-name="${nombre}" style="--damage-percent: ${u.damagePercent}%; --damage-bg-color: ${bgColor};">
+        html += `<div class="player-bar" data-rank="${u.rank}" data-uid="${u.uid}" data-name="${name}" style="--damage-percent: ${u.damagePercent}%; --damage-bg-color: ${bgColor};">
                     <div class="player-info">
                         <span class="${positionClasses}">${position}</span>
-                        <button class="add-to-registry-btn" data-uid="${u.uid}" data-name="${nombre}" title="Add to Player Registry">
+                        <button class="add-to-registry-btn" data-uid="${u.uid}" data-name="${name}" title="Add to Player Registry">
                             <i class="fa-solid fa-plus"></i>
                         </button>
                         <img class="class-icon" src="icons/${prof.icon}" alt="${professionName}" title="${professionName}">
                         <div class="player-details">
-                            <span class="player-name">${nombre} <span style="color: var(--text-secondary); font-size: 9px; font-weight: 400;">(${t('ui.stats.gs')}: ${u.fightPoint})</span></span>
+                            <span class="player-name">${name} <span style="color: var(--text-secondary); font-size: 9px; font-weight: 400;">(${t('ui.stats.gs')}: ${u.fightPoint})</span></span>
                             <div class="hp-bar">
                                 <div class="hp-fill" style="width: ${hpPercent}%; background: ${hpColor};"></div>
                                 <span class="hp-text">${formatStat(u.hp || 0)}/${formatStat(u.max_hp || 0)}</span>
@@ -909,54 +1000,55 @@ function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: nu
                         <div class="player-stats-main">
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.dps')}</span>
-                                <span class="stat-value">${formatStat(dps)}</span>
+                                <span class="stat-value" data-stat="dps">${formatStat(dps)}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.hps')}</span>
-                                <span class="stat-value">${formatStat(u.total_hps || 0)}</span>
+                                <span class="stat-value" data-stat="hps">${formatStat(u.total_hps || 0)}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.totalDmg')}</span>
-                                <span class="stat-value">${formatStat((u.total_damage && u.total_damage.total) || 0)}</span>
+                                <span class="stat-value" data-stat="totalDmg">${formatStat((u.total_damage && u.total_damage.total) || 0)}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.dmgTaken')}</span>
-                                <span class="stat-value">${formatStat(u.taken_damage || 0)}</span>
+                                <span class="stat-value" data-stat="dmgTaken">${formatStat(u.taken_damage || 0)}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.percentDmg')}</span>
-                                <span class="stat-value">${Math.round(u.damagePercent)}%</span>
+                                <span class="stat-value" data-stat="percentDmg">${Math.round(u.damagePercent)}%</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.critPercent')}</span>
-                                <span class="stat-value">${crit}%</span>
+                                <span class="stat-value" data-stat="critPercent">${crit}%</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.critDmg')}</span>
-                                <span class="stat-value">${formatStat((u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0))}</span>
+                                <span class="stat-value" data-stat="critDmg">${formatStat((u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0))}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.avgCritDmg')}</span>
-                                <span class="stat-value">${formatStat(((u.total_count.critical + u.total_count.crit_lucky) > 0 ? ((u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0)) / (u.total_count.critical + u.total_count.crit_lucky) : 0))}</span>
+                                <span class="stat-value" data-stat="avgCritDmg">${formatStat(((u.total_count.critical + u.total_count.crit_lucky) > 0 ? ((u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0)) / (u.total_count.critical + u.total_count.crit_lucky) : 0))}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.luckyPercent')}</span>
-                                <span class="stat-value">${lucky}%</span>
+                                <span class="stat-value" data-stat="luckyPercent">${lucky}%</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.peakDps')}</span>
-                                <span class="stat-value">${formatStat(peak)}</span>
+                                <span class="stat-value" data-stat="peakDps">${formatStat(peak)}</span>
                             </div>
                             <div class="stat">
                                 <span class="stat-label">${t('ui.stats.totalHeal')}</span>
-                                <span class="stat-value">${formatStat(totalHealing)}</span>
+                                <span class="stat-value" data-stat="totalHeal">${formatStat(totalHealing)}</span>
                             </div>
+                        </div>
                     </div>
-                </div>
                 </div>`;
-    }).join('')}
-        </div>
-    `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
 
     // Add event listeners for add-to-registry buttons
     setTimeout(() => {
@@ -970,6 +1062,168 @@ function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: nu
             });
         });
     }, 0);
+}
+
+function updatePlayerBarsValues(container: HTMLElement, userArray: any[], localUid: number | null): void {
+    const dpsMeterContainer = container.querySelector('.dps-meter-container');
+    if (!dpsMeterContainer) return;
+
+    // Create a map of existing player bars for easy lookup
+    const existingBars = new Map();
+    const playerBars = Array.from(dpsMeterContainer.querySelectorAll('.player-bar'));
+    
+    playerBars.forEach(bar => {
+        const uid = bar.getAttribute('data-uid');
+        if (uid) {
+            existingBars.set(uid, bar);
+        }
+    });
+
+    // Track if we need to reorder
+    let needsReorder = false;
+    const currentOrder = Array.from(dpsMeterContainer.querySelectorAll('.player-bar'))
+        .map(bar => bar.getAttribute('data-uid'));
+    const expectedOrder = userArray.map(u => String(u.uid));
+
+    // Check if order needs to be updated
+    if (currentOrder.length !== expectedOrder.length) {
+        needsReorder = true;
+    } else {
+        for (let i = 0; i < expectedOrder.length; i++) {
+            if (currentOrder[i] !== expectedOrder[i]) {
+                needsReorder = true;
+                break;
+            }
+        }
+    }
+
+    // Reorder elements if needed
+    if (needsReorder) {
+        // Remove all existing bars
+        playerBars.forEach(bar => bar.remove());
+        
+        // Add them back in correct order
+        userArray.forEach((u: any, index: number) => {
+            const uid = String(u.uid);
+            const existingBar = existingBars.get(uid);
+            if (existingBar) {
+                dpsMeterContainer.appendChild(existingBar);
+            }
+        });
+    }
+
+    // Now update all values including positions
+    userArray.forEach((u: any, index: number) => {
+        const playerBar = existingBars.get(String(u.uid)) as HTMLElement;
+        if (!playerBar) return;
+
+        // Update position/rank
+        const positionElement = playerBar.querySelector('.player-position') as HTMLElement;
+        if (positionElement) {
+            positionElement.textContent = String(index + 1);
+            
+            // Update position classes
+            positionElement.className = 'player-position';
+            const position = index + 1;
+            
+            if (position === 1) {
+                positionElement.classList.add('rank-1');
+            } else if (position === 2) {
+                positionElement.classList.add('rank-2');
+            } else if (position === 3) {
+                positionElement.classList.add('rank-3');
+            }
+
+            const isLocalPlayer = localUid && u.uid === localUid;
+            if (isLocalPlayer) {
+                positionElement.classList.add('local-player');
+            }
+        }
+
+        // Update profession info if needed
+        const professionParts = (u.profession || '-').split('-');
+        const mainProfessionKey = professionParts[0];
+        const subProfessionKey = professionParts[1];
+        const prof = subProfessionKey
+            ? getProfessionInfo(subProfessionKey)
+            : getProfessionInfo(mainProfessionKey);
+
+        const classIcon = playerBar.querySelector('.class-icon') as HTMLImageElement;
+        if (classIcon && classIcon.src !== `icons/${prof.icon}`) {
+            classIcon.src = `icons/${prof.icon}`;
+            
+            const translatedMainProf = translateProfession(mainProfessionKey);
+            const translatedSubProf = subProfessionKey ? translateProfession(subProfessionKey) : null;
+            let professionName = translatedMainProf;
+            if (translatedSubProf) {
+                professionName += ` - ${translatedSubProf}`;
+            }
+            classIcon.alt = professionName;
+            classIcon.title = professionName;
+        }
+
+        // Update GS (fightPoint) in player name
+        const playerNameElement = playerBar.querySelector('.player-name') as HTMLElement;
+        if (playerNameElement) {
+            const nombre = getPlayerName(String(u.uid), u.name);
+            const gsText = `(${t('ui.stats.gs')}: ${u.fightPoint})`;
+            playerNameElement.innerHTML = `${nombre} <span style="color: var(--text-secondary); font-size: 9px; font-weight: 400;">${gsText}</span>`;
+        }
+
+        // Update data attributes for name changes
+        if (playerBar.dataset.name !== u.name) {
+            playerBar.dataset.name = u.name;
+            const addButton = playerBar.querySelector('.add-to-registry-btn') as HTMLButtonElement;
+            if (addButton) {
+                addButton.dataset.name = u.name;
+            }
+        }
+
+        const totalHits = u.total_count.total || 0;
+        const crit = (u.total_count.critical !== undefined && totalHits > 0) ? Math.round((u.total_count.critical / totalHits) * 100) : '0';
+        const lucky = (u.total_count.lucky !== undefined && totalHits > 0) ? Math.round((u.total_count.lucky / totalHits) * 100) : '0';
+        const peak = (u.realtime_dps_max !== undefined) ? u.realtime_dps_max : 0;
+        const dps = Number(u.total_dps) || 0;
+        const totalHealing = u.total_healing ? (Number(u.total_healing.total) || 0) : 0;
+        const hpPercent = ((u.hp || 0) / (u.max_hp || 1)) * 100;
+        const hpColor = hpPercent > 50 ? '#1db954' : hpPercent > 25 ? '#f39c12' : '#e74c3c';
+
+        // Update HP bar
+        const hpFill = playerBar.querySelector('.hp-fill') as HTMLElement;
+        const hpText = playerBar.querySelector('.hp-text') as HTMLElement;
+        if (hpFill) {
+            hpFill.style.width = `${hpPercent}%`;
+            hpFill.style.background = hpColor;
+        }
+        if (hpText) {
+            hpText.textContent = `${formatStat(u.hp || 0)}/${formatStat(u.max_hp || 0)}`;
+        }
+
+        // Update stat values
+        const updateStat = (statName: string, value: string | number) => {
+            const element = playerBar.querySelector(`[data-stat="${statName}"]`) as HTMLElement;
+            if (element) {
+                element.textContent = typeof value === 'number' ? formatStat(value) : value;
+            }
+        };
+
+        updateStat('dps', dps);
+        updateStat('hps', u.total_hps || 0);
+        updateStat('totalDmg', (u.total_damage && u.total_damage.total) || 0);
+        updateStat('dmgTaken', u.taken_damage || 0);
+        updateStat('percentDmg', `${Math.round(u.damagePercent)}%`);
+        updateStat('critPercent', `${crit}%`);
+        updateStat('critDmg', (u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0));
+        updateStat('avgCritDmg', ((u.total_count.critical + u.total_count.crit_lucky) > 0 ? 
+            ((u.total_damage.critical || 0) + (u.total_damage.crit_lucky || 0)) / (u.total_count.critical + u.total_count.crit_lucky) : 0));
+        updateStat('luckyPercent', `${lucky}%`);
+        updateStat('peakDps', peak);
+        updateStat('totalHeal', totalHealing);
+
+        // Update damage percentage background
+        playerBar.style.setProperty('--damage-percent', `${u.damagePercent}%`);
+        playerBar.style.setProperty('--damage-bg-color', getPositionBackgroundColor(index));
+    });
 }
 
 function calculateSkillDPS(skill: any, startTime: number): number {

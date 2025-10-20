@@ -29,6 +29,8 @@ const globalSettings: GlobalSettings = {
     onlyRecordEliteDummy: false,
     enableFightLog: false,
     enableHistorySave: false,
+    lastPausedAt: null,
+    lastResumedAt: null,
 };
 
 let server_port: number | undefined;
@@ -123,7 +125,15 @@ async function main(): Promise<void> {
     });
 
     setInterval(() => {
+        if (globalSettings.isPaused) {
+            sniffer.setPaused(true);
+        }
+
         if (!globalSettings.isPaused) {
+            if (sniffer.getPaused()) {
+                sniffer.setPaused(false);
+            }
+
             userDataManager.updateAllRealtimeDps();
         }
     }, 100);
@@ -155,7 +165,7 @@ async function main(): Promise<void> {
     // Interval to clean IP and TCP fragment cache
     setInterval(() => {
         userDataManager.checkTimeoutClear();
-    }, 10000);
+    }, 1000);
 }
 
 if (!zlib.zstdDecompressSync) {

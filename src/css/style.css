@@ -90,6 +90,16 @@ body {
     border-color: var(--accent-primary);
 }
 
+/* Specific pause button tweaks */
+#pause-button {
+    margin-left: 6px;
+}
+
+#pause-button:focus {
+    outline: 2px solid rgba(74, 158, 255, 0.25);
+    outline-offset: 2px;
+}
+
 /* Botones de ordenamiento */
 .sort-button {
     padding: 4px 12px;

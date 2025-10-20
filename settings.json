@@ -3,6 +3,8 @@
   "filterMode": "all",
   "playerRegistry": {},
   "isPaused": false,
+  "lastPausedAt": null,
+  "lastResumedAt": null,
   "autoClearOnServerChange": true,
   "autoClearOnTimeout": true,
   "onlyRecordEliteDummy": false,

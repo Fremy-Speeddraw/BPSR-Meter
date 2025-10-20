@@ -105,12 +105,30 @@ function initializeApi(
 
     app.post('/api/pause', (req: Request, res: Response) => {
         const { paused } = req.body;
-        globalSettings.isPaused = paused;
+        globalSettings.isPaused = !!paused;
+        const now = Date.now();
+        if (globalSettings.isPaused) {
+            globalSettings.lastPausedAt = now;
+        } else {
+            globalSettings.lastResumedAt = now;
+        }
         console.log(`Statistics ${globalSettings.isPaused ? 'paused' : 'resumed'}!`);
+
+        // Persist settings so timestamps survive restarts
+        (async () => {
+            try {
+                await fsPromises.writeFile(SETTINGS_PATH, JSON.stringify(globalSettings, null, 2), 'utf8');
+            } catch (err) {
+                console.error('Failed to persist settings after pause toggle:', err);
+            }
+        })();
+
         res.json({
             code: 0,
             msg: `Statistics ${globalSettings.isPaused ? 'paused' : 'resumed'}!`,
             paused: globalSettings.isPaused,
+            lastPausedAt: globalSettings.lastPausedAt || null,
+            lastResumedAt: globalSettings.lastResumedAt || null,
         });
     });
 
