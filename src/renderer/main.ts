@@ -11,7 +11,6 @@ let viewMode: ViewMode = 'nearby';
 let sortColumn: SortColumn = 'totalDmg';
 let sortDirection: SortDirection = 'desc';
 let isLocked: boolean = false;
-let isDraggingWindow: boolean = false;
 let currentMouseEventsState: boolean = false;
 let isScrolling: boolean = false;
 let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -21,18 +20,32 @@ let playerRegistryCache: PlayerRegistry = {};
 // Main initialization
 document.addEventListener('DOMContentLoaded', async () => {
     devLog('BPSR Meter TypeScript renderer loaded!');
-    
+
+    // Load saved window size and scale
+    if (window.electronAPI) {
+        try {
+            const savedSizes = await window.electronAPI.getSavedWindowSizes();
+            if (savedSizes && savedSizes.main && savedSizes.main.scale) {
+                const scale = savedSizes.main.scale;
+                document.documentElement.style.setProperty('--scale', scale.toString());
+                devLog(`Loaded saved scale: ${scale}`);
+            }
+        } catch (error) {
+            devWarn('Failed to load saved window scale:', error);
+        }
+    }
+
     try {
         // Initialize translations
         const settings = await fetchSettings();
         const targetLang = settings.language || 'en';
         const translationLoaded = await loadTranslations(targetLang);
-        
+
         if (!translationLoaded) {
             devWarn('Failed to load translations, falling back to English');
             await loadTranslations('en');
         }
-        
+
         // Update UI with translations
         updateUITranslations();
     } catch (error) {
@@ -40,18 +53,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         await loadTranslations('en');
         updateUITranslations();
     }
-    
+
     // Load player registry
     await loadPlayerRegistryCache();
-    
+
     // Setup event listeners
     setupEventListeners();
-    
+
     // Setup Electron-specific features
     if (window.electronAPI) {
         setupElectronFeatures();
     }
-    
+
     // Start data fetching loop
     startDataLoop();
 });
@@ -64,7 +77,7 @@ function setupEventListeners(): void {
             window.electronAPI.closeWindow();
         });
     }
-    
+
     // Lock button
     const lockBtn = document.getElementById('lock-button');
     if (lockBtn && window.electronAPI) {
@@ -72,37 +85,36 @@ function setupEventListeners(): void {
             window.electronAPI.toggleLockState();
         });
     }
-    
+
     // Language toggle
     const languageBtn = document.getElementById('language-btn');
     if (languageBtn) {
         languageBtn.addEventListener('click', handleLanguageToggle);
     }
-    
+
     // Sync/refresh button
     const syncBtn = document.getElementById('sync-button');
     if (syncBtn) {
         syncBtn.addEventListener('click', handleSync);
     }
-    
+
     // Sort buttons
     setupSortButtons();
-    
+
     // Group button
     const groupBtn = document.getElementById('group-btn');
     if (groupBtn && window.electronAPI) {
         groupBtn.addEventListener('click', () => {
             window.electronAPI.openGroupWindow();
-            setTimeout(() => resizeWindowToContent(true), 100);
         });
     }
-    
+
     // History button
     const historyBtn = document.getElementById('history-btn');
     devLog('History button element:', historyBtn);
     devLog('window.electronAPI:', window.electronAPI);
     devLog('openHistoryWindow method:', window.electronAPI?.openHistoryWindow);
-    
+
     if (historyBtn && window.electronAPI) {
         historyBtn.addEventListener('click', () => {
             devLog('History button clicked, opening history window...');
@@ -116,7 +128,7 @@ function setupEventListeners(): void {
             hasMethod: !!window.electronAPI?.openHistoryWindow
         });
     }
-    
+
     // Nearby/Solo/Skills button toggles
     const nearbyGroupBtn = document.getElementById('nearby-group-btn');
     if (nearbyGroupBtn) {
@@ -124,31 +136,31 @@ function setupEventListeners(): void {
             viewMode = viewMode === 'nearby' ? 'solo' : 'nearby';
             nearbyGroupBtn.textContent = viewMode === 'nearby' ? 'Nearby' : 'Solo';
             nearbyGroupBtn.classList.toggle('solo', viewMode === 'solo');
-            
+
             const sortButtons = [document.getElementById('sort-dmg-btn'), document.getElementById('sort-tank-btn'), document.getElementById('sort-heal-btn')];
             sortButtons.forEach(btn => {
                 if (btn) {
                     (btn as HTMLElement).style.display = viewMode === 'solo' ? 'none' : 'block';
                 }
             });
-            
+
             fetchDataAndRender();
         });
     }
-    
+
     const skillsBtn = document.getElementById('skills-btn');
     if (skillsBtn) {
         skillsBtn.addEventListener('click', () => {
             viewMode = viewMode === 'skills' ? 'nearby' : 'skills';
             skillsBtn.classList.toggle('active', viewMode === 'skills');
-            
+
             const sortButtons = [document.getElementById('sort-dmg-btn'), document.getElementById('sort-tank-btn'), document.getElementById('sort-heal-btn')];
             sortButtons.forEach(btn => {
                 if (btn) {
                     (btn as HTMLElement).style.display = viewMode === 'skills' ? 'none' : 'block';
                 }
             });
-            
+
             if (nearbyGroupBtn) {
                 if (viewMode === 'skills') {
                     (nearbyGroupBtn as HTMLElement).style.display = 'none';
@@ -157,46 +169,37 @@ function setupEventListeners(): void {
                     nearbyGroupBtn.textContent = viewMode === 'nearby' ? 'Nearby' : 'Solo';
                 }
             }
-            
+
             fetchDataAndRender();
         });
     }
-    
-    // Window resize events
-    window.addEventListener('focus', () => {
-        setTimeout(() => resizeWindowToContent(true), 50);
-    });
-    
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            setTimeout(() => resizeWindowToContent(true), 50);
-        }
-    });
 }
 
 function setupElectronFeatures(): void {
     if (!window.electronAPI) return;
-    
+
     // Lock state changes
     window.electronAPI.onLockStateChanged((locked: boolean) => {
         isLocked = locked;
         updateLockUI(locked);
         updateClickThroughState();
     });
-    
+
     // Initialize with mouse events enabled
     window.electronAPI.setIgnoreMouseEvents(false);
     currentMouseEventsState = false;
     devLog('Initial state: Mouse events ENABLED (UI is interactive)');
-    
+
     // Setup manual drag
     setupManualDrag();
-    
+
+    // Setup window resize handler
+    setupWindowResize();
+
     // Setup click-through control
     setupClickThroughControl();
-    
-    // Force resize multiple times at startup
-    setTimeout(() => resizeWindowToContent(true), 100);
+
+    setInterval(() => resizeWindowToContent(true), 100);
 }
 
 function setupManualDrag(): void {
@@ -213,7 +216,6 @@ function setupManualDrag(): void {
         if (isLocked) return;
 
         isDragging = true;
-        isDraggingWindow = true; // Prevent resize during drag
         startX = e.screenX;
         startY = e.screenY;
 
@@ -222,7 +224,6 @@ function setupManualDrag(): void {
         startWindowY = position.y;
 
         enableMouseEvents();
-        devLog('Drag started at:', startX, startY);
         e.preventDefault();
     });
 
@@ -244,11 +245,68 @@ function setupManualDrag(): void {
             setTimeout(() => {
                 if (!isDragging) {
                     disableMouseEvents();
-                    isDraggingWindow = false; // Re-enable resize
                 }
             }, 100);
         }
     });
+}
+
+function setupWindowResize(): void {
+    if (!window.electronAPI) return;
+
+    // Get zoom buttons from the control bar
+    const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const zoomInBtn = document.getElementById('zoom-in-btn');
+
+    if (!zoomOutBtn || !zoomInBtn) {
+        devWarn('Zoom buttons not found in DOM');
+        return;
+    }
+
+    // Handle zoom out
+    zoomOutBtn.addEventListener('click', () => {
+        if (isLocked) return;
+
+        const currentScale = parseFloat(document.documentElement.style.getPropertyValue('--scale') || '1');
+        const newScale = Math.max(0.6, currentScale - 0.1);
+
+        applyScale(newScale);
+    });
+
+    // Handle zoom in
+    zoomInBtn.addEventListener('click', () => {
+        if (isLocked) return;
+
+        const currentScale = parseFloat(document.documentElement.style.getPropertyValue('--scale') || '1');
+        const newScale = Math.min(1.8, currentScale + 0.1);
+
+        applyScale(newScale);
+    });
+}
+
+function applyScale(scale: number): void {
+    // Set the CSS scale variable
+    document.documentElement.style.setProperty('--scale', scale.toString());
+
+    // Get the base content size
+    const dpsMeter = document.querySelector('.dps-meter') as HTMLElement;
+    if (dpsMeter && window.electronAPI) {
+        // Base dimensions at scale 1.0
+        const baseWidth = 650;
+        const baseHeight = 700;
+
+        // Calculate scaled dimensions
+        const scaledWidth = Math.floor(baseWidth * scale);
+        const scaledHeight = Math.floor(baseHeight * scale);
+
+        // Resize window
+        window.electronAPI.resizeWindowToContent('main', scaledWidth, scaledHeight);
+
+        // Save the settings
+        setTimeout(() => {
+            window.electronAPI.saveWindowSize('main', scaledWidth, scaledHeight, scale);
+        }, 100);
+    }
 }
 
 function enableMouseEvents(): void {
@@ -264,7 +322,7 @@ function disableMouseEvents(): void {
         devLog('Mouse events NOT disabled (user is scrolling)');
         return;
     }
-    
+
     if (window.electronAPI && !currentMouseEventsState) {
         window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
         currentMouseEventsState = true;
@@ -327,15 +385,17 @@ function setupClickThroughControl(): void {
     });
 
     document.addEventListener('wheel', (e: WheelEvent) => {
-        const scrollableElement = (e.target as Element).closest('.skills-container, #player-bars-container');
+        const scrollableElements = ['.skills-container', '.dps-meter-container'];
+        const scrollableElement = scrollableElements.find(selector => (e.target as Element).closest(selector) !== null);
+
         if (scrollableElement) {
             isScrolling = true;
             enableMouseEvents();
-            
+
             if (scrollTimeout) {
                 clearTimeout(scrollTimeout);
             }
-            
+
             scrollTimeout = setTimeout(() => {
                 isScrolling = false;
                 devLog('Scrolling ended');
@@ -348,7 +408,7 @@ function setupSortButtons(): void {
     const sortDmgBtn = document.getElementById('sort-dmg-btn');
     const sortTankBtn = document.getElementById('sort-tank-btn');
     const sortHealBtn = document.getElementById('sort-heal-btn');
-    
+
     if (sortDmgBtn) {
         sortDmgBtn.addEventListener('click', () => setSortColumn('totalDmg'));
     }
@@ -367,7 +427,7 @@ function setSortColumn(column: SortColumn): void {
         sortColumn = column;
         sortDirection = 'desc';
     }
-    
+
     updateSortButtonsUI();
     fetchDataAndRender();
 }
@@ -380,7 +440,7 @@ function updateSortButtonsUI(): void {
             btn.classList.remove('active');
         }
     });
-    
+
     const activeBtn = document.getElementById(`sort-${sortColumn === 'totalDmg' ? 'dmg' : sortColumn === 'totalDmgTaken' ? 'tank' : 'heal'}-btn`);
     if (activeBtn) {
         activeBtn.classList.add('active');
@@ -389,7 +449,7 @@ function updateSortButtonsUI(): void {
 
 async function handleLanguageToggle(): Promise<void> {
     const newLang = getCurrentLanguage() === 'en' ? 'zh' : 'en';
-    
+
     try {
         const success = await changeLanguage(newLang);
         if (success) {
@@ -408,10 +468,10 @@ async function handleSync(): Promise<void> {
         syncBtn.style.opacity = '0.5';
         (syncBtn as HTMLElement).style.pointerEvents = 'none';
     }
-    
+
     await resetStatistics();
     await fetchDataAndRender();
-    
+
     if (syncBtn) {
         setTimeout(() => {
             syncBtn.style.opacity = '1';
@@ -423,12 +483,12 @@ async function handleSync(): Promise<void> {
 function updateLockUI(locked: boolean): void {
     const lockBtn = document.getElementById('lock-button');
     if (lockBtn) {
-        lockBtn.innerHTML = locked 
-            ? '<i class="fa-solid fa-lock"></i>' 
+        lockBtn.innerHTML = locked
+            ? '<i class="fa-solid fa-lock"></i>'
             : '<i class="fa-solid fa-lock-open"></i>';
         lockBtn.title = locked ? 'Unlock position' : 'Lock position';
     }
-    
+
     const dpsMeter = document.querySelector('.dps-meter');
     if (dpsMeter) {
         dpsMeter.classList.toggle('locked', locked);
@@ -437,7 +497,7 @@ function updateLockUI(locked: boolean): void {
 
 function updateClickThroughState(): void {
     if (!window.electronAPI) return;
-    
+
     if (isLocked) {
         window.electronAPI.setIgnoreMouseEvents(true, { forward: true });
         currentMouseEventsState = true;
@@ -494,12 +554,12 @@ async function addPlayerToRegistry(uid: string, name: string): Promise<void> {
 function startDataLoop(): void {
     fetchDataAndRender();
     setInterval(fetchDataAndRender, 50);
-    
+
     // Refresh group state every 2 seconds
     setInterval(async () => {
         manualGroupState = await getManualGroup();
     }, 2000);
-    
+
     // Refresh player registry every 10 seconds
     setInterval(loadPlayerRegistryCache, 10000);
 }
@@ -511,9 +571,9 @@ async function fetchDataAndRender(): Promise<void> {
     const container = document.getElementById('player-bars-container');
     const loadingIndicator = document.getElementById('loading-indicator');
     const playerBarsContainer = document.getElementById('player-bars-container');
-    
+
     if (!container) return;
-    
+
     try {
         // Handle skills view mode
         if (viewMode === 'skills') {
@@ -527,7 +587,6 @@ async function fetchDataAndRender(): Promise<void> {
                 if (loadingIndicator) loadingIndicator.style.display = 'none';
                 if (playerBarsContainer) playerBarsContainer.style.display = 'block';
                 renderSkillBreakdown(skillsData.data.skills, skillsData.startTime);
-                resizeWindowToContent();
             } else {
                 if (loadingIndicator) loadingIndicator.style.display = 'flex';
                 if (playerBarsContainer) playerBarsContainer.style.display = 'none';
@@ -576,7 +635,7 @@ async function fetchDataAndRender(): Promise<void> {
         if (loadingIndicator) loadingIndicator.style.display = 'none';
         if (playerBarsContainer) playerBarsContainer.style.display = 'flex';
 
-        const sumaTotalDamage = userArray.reduce((acc: number, u: any) => 
+        const sumaTotalDamage = userArray.reduce((acc: number, u: any) =>
             acc + (u.total_damage && u.total_damage.total ? Number(u.total_damage.total) : 0), 0);
 
         if (sumaTotalDamage !== lastTotalDamage) {
@@ -629,8 +688,6 @@ async function fetchDataAndRender(): Promise<void> {
         }
 
         renderPlayerBars(container, userArray, localUid);
-        resizeWindowToContent();
-
     } catch (err) {
         console.error('Error in fetchDataAndRender:', err);
         if (container) {
@@ -670,13 +727,13 @@ function sortUserArray(userArray: any[]): void {
 function renderPlayers(players: PlayerData[]): void {
     // Sort players
     const sorted = sortPlayers(players);
-    
+
     // Render player bars
     const container = document.getElementById('player-bars-container');
     if (!container) return;
-    
+
     container.innerHTML = '';
-    
+
     sorted.forEach(player => {
         const bar = createPlayerBar(player);
         container.appendChild(bar);
@@ -687,11 +744,11 @@ function sortPlayers(players: PlayerData[]): PlayerData[] {
     return [...players].sort((a, b) => {
         let aVal = a[sortColumn] || 0;
         let bVal = b[sortColumn] || 0;
-        
+
         if (typeof aVal === 'number' && typeof bVal === 'number') {
             return sortDirection === 'desc' ? bVal - aVal : aVal - bVal;
         }
-        
+
         return 0;
     });
 }
@@ -712,33 +769,30 @@ function getPlayerName(uid: string, currentName: string): string {
 
 function resizeWindowToContent(force: boolean = false): void {
     if (!window.electronAPI?.resizeWindowToContent) return;
-    
-    // Don't resize while dragging the window
-    if (isDraggingWindow) return;
-    
+
     requestAnimationFrame(() => {
         const dpsMeter = document.querySelector('.dps-meter');
         if (dpsMeter) {
             const rect = dpsMeter.getBoundingClientRect();
             const width = Math.ceil(rect.width);
             const height = Math.ceil(rect.height);
-            
+
             if (width < 100 || height < 50 || width > 2000 || height > 1500) {
                 devWarn('Invalid dimensions detected:', width, height);
                 return;
             }
-            
+
             if (force) {
-                window.electronAPI.resizeWindowToContent(width, height);
+                window.electronAPI.resizeWindowToContent('main', width, height);
                 lastWindowWidth = width;
                 lastWindowHeight = height;
                 devLog('Forced resize to:', width, height);
             } else {
                 const widthChanged = Math.abs(width - lastWindowWidth) > 5;
                 const heightChanged = Math.abs(height - lastWindowHeight) > 5;
-                
+
                 if (widthChanged || heightChanged) {
-                    window.electronAPI.resizeWindowToContent(width, height);
+                    window.electronAPI.resizeWindowToContent('main', width, height);
                     lastWindowWidth = width;
                     lastWindowHeight = height;
                 }
@@ -768,15 +822,15 @@ function getPositionBackgroundColor(index: number): string {
 function createPlayerBar(player: PlayerData): HTMLDivElement {
     const bar = document.createElement('div');
     bar.className = 'player-bar';
-    
+
     // Get profession info - prefer sub-profession for icon if available
     const professionParts = (player.profession || '-').split('-');
     const subProfessionKey = professionParts[1];
     const mainProfessionKey = professionParts[0];
-    const profInfo = subProfessionKey 
-        ? getProfessionInfo(subProfessionKey) 
+    const profInfo = subProfessionKey
+        ? getProfessionInfo(subProfessionKey)
         : getProfessionInfo(mainProfessionKey);
-    
+
     bar.innerHTML = `
         <div class="player-info">
             <img src="icons/${profInfo.icon}" class="profession-icon" alt="${profInfo.name}">
@@ -787,19 +841,21 @@ function createPlayerBar(player: PlayerData): HTMLDivElement {
             <span class="stat-dps">${formatDPS(player.realtimeDps)}</span>
         </div>
     `;
-    
+
     return bar;
 }
 
 function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: number | null): void {
-    container.innerHTML = userArray.map((u: any, index: number) => {
+    container.innerHTML = `
+        <div class="dps-meter-container" data-user-count="${userArray.length}">
+            ${userArray.map((u: any, index: number) => {
         const professionParts = (u.profession || '-').split('-');
         const mainProfessionKey = professionParts[0];
         const subProfessionKey = professionParts[1];
-        
+
         // Get profession info - prefer sub-profession for icon if available, otherwise use main
-        const prof = subProfessionKey 
-            ? getProfessionInfo(subProfessionKey) 
+        const prof = subProfessionKey
+            ? getProfessionInfo(subProfessionKey)
             : getProfessionInfo(mainProfessionKey);
 
         const translatedMainProf = translateProfession(mainProfessionKey);
@@ -898,8 +954,10 @@ function renderPlayerBars(container: HTMLElement, userArray: any[], localUid: nu
                     </div>
                 </div>
                 </div>`;
-    }).join('');
-    
+    }).join('')}
+        </div>
+    `;
+
     // Add event listeners for add-to-registry buttons
     setTimeout(() => {
         const addButtons = container.querySelectorAll('.add-to-registry-btn');
@@ -954,10 +1012,10 @@ function buildSkillBreakdownDOM(container: HTMLElement, skillsData: any, startTi
         const professionParts = (data.profession || 'Unknown').split('-');
         const mainProfessionKey = professionParts[0];
         const subProfessionKey = professionParts[1];
-        
+
         // Get profession info - prefer sub-profession for icon if available
-        const prof = subProfessionKey 
-            ? getProfessionInfo(subProfessionKey) 
+        const prof = subProfessionKey
+            ? getProfessionInfo(subProfessionKey)
             : getProfessionInfo(mainProfessionKey);
 
         const translatedMainProf = translateProfession(mainProfessionKey);
@@ -968,7 +1026,7 @@ function buildSkillBreakdownDOM(container: HTMLElement, skillsData: any, startTi
         }
 
         const playerName = getPlayerName(uid as string, data.name);
-        
+
         html += `<div class="player-skill-section" data-uid="${uid}">
                 <div class="player-skill-header" data-collapsible="user">
                     <svg class="collapse-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -1090,19 +1148,19 @@ function updateSkillBreakdownValues(container: HTMLElement, skillsData: any, sta
 document.addEventListener('click', (e: MouseEvent) => {
     const target = e.target as HTMLElement;
     const header = target.closest('[data-collapsible]') as HTMLElement;
-    
+
     if (!header) return;
-    
+
     const collapsibleType = header.getAttribute('data-collapsible');
-    
+
     if (collapsibleType === 'user') {
         // Toggle player skill section
         const section = header.closest('.player-skill-section');
         if (!section) return;
-        
+
         const skillsGrid = section.querySelector('.skills-grid') as HTMLElement;
         const icon = header.querySelector('.collapse-icon') as SVGElement;
-        
+
         if (skillsGrid && icon) {
             section.classList.toggle('collapsed');
             if (section.classList.contains('collapsed')) {
@@ -1117,10 +1175,10 @@ document.addEventListener('click', (e: MouseEvent) => {
         // Toggle individual skill card
         const skillCard = header.closest('.skill-card');
         if (!skillCard) return;
-        
+
         const skillStats = skillCard.querySelector('.skill-stats') as HTMLElement;
         const icon = header.querySelector('.collapse-icon') as SVGElement;
-        
+
         if (skillStats && icon) {
             skillCard.classList.toggle('collapsed');
             if (skillCard.classList.contains('collapsed')) {

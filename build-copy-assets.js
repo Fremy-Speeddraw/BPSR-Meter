@@ -14,7 +14,6 @@ const __dirname = path.dirname(__filename);
 const dirsToCopy = [
     'tables',
     'algo',
-    'public',
     'translations'
 ];
 

@@ -79,6 +79,11 @@ export interface GlobalSettings {
     language?: string;
     availableLanguages?: string[];
     manualGroup?: ManualGroup;
+    windowSizes?: {
+        main?: { width: number; height: number; scale?: number };
+        group?: { width: number; height: number };
+        history?: { width: number; height: number };
+    };
 }
 
 export interface ApiResponse<T = any> {

@@ -44,7 +44,6 @@
   "exclude": [
     "node_modules",
     "dist",
-    "public/**/*.js",
     "algo/**/*.js",
     "src/server/dataManager.js",
     "src/server/api.js",

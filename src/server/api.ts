@@ -554,27 +554,6 @@ function initializeApi(
         });
     });
 
-    app.get('/api/diccionario', async (req: Request, res: Response) => {
-        const diccionarioPath = path.join(__dirname, '..', '..', 'diccionario.json');
-        try {
-            const data = await fsPromises.readFile(diccionarioPath, 'utf8');
-            if (data.trim() === '') {
-                res.json({});
-            } else {
-                res.json(JSON.parse(data));
-            }
-        } catch (error) {
-            const err = error as ErrorWithCode;
-            if (err.code === 'ENOENT') {
-                logger.warn('diccionario.json not found, returning empty object.');
-                res.json({});
-            } else {
-                logger.error('Failed to read or parse diccionario.json:', error);
-                res.status(500).json({ code: 1, msg: 'Failed to load diccionario', error: (error as Error).message });
-            }
-        }
-    });
-
     io.on('connection', (socket) => {
         console.log('WebSocket client connected: ' + socket.id);
 

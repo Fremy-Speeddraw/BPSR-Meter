@@ -68,7 +68,7 @@ async function loadTranslations(lang: string): Promise<boolean> {
             devError('Translation response not ok:', response.status);
             return false;
         }
-        
+
         const result = await response.json();
         if (result.code === 0 && result.data) {
             translations = result.data;
@@ -101,7 +101,7 @@ async function loadPlayerRegistry(): Promise<void> {
     try {
         const response = await fetch('/api/player-registry');
         const result = await response.json();
-        
+
         if (result.code === 0 && result.data) {
             playerRegistryCache = result.data;
             devLog('Loaded player registry:', Object.keys(playerRegistryCache).length, 'players');
@@ -127,46 +127,114 @@ function getPlayerName(uid: string, currentName: string): string {
 function setupDragging(): void {
     const dragIndicator = document.getElementById('drag-indicator');
     if (!dragIndicator || !window.electronAPI) return;
-    
+
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    
+
     dragIndicator.addEventListener('mousedown', async (e: MouseEvent) => {
         isDragging = true;
         startX = e.screenX;
         startY = e.screenY;
-        
+
         // Get current window position
         const pos = await window.electronAPI.getWindowPosition();
         const startPosX = pos.x;
         const startPosY = pos.y;
-        
+
         const handleMouseMove = (moveEvent: MouseEvent) => {
             if (!isDragging) return;
-            
+
             const deltaX = moveEvent.screenX - startX;
             const deltaY = moveEvent.screenY - startY;
-            
+
             window.electronAPI.setWindowPosition(
                 startPosX + deltaX,
                 startPosY + deltaY
             );
         };
-        
+
         const handleMouseUp = () => {
             isDragging = false;
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
         };
-        
+
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
     });
 }
 
+function setupZoomControls(): void {
+    if (!window.electronAPI) return;
+
+    const zoomOutBtn = document.getElementById('history-zoom-out-btn');
+    const zoomInBtn = document.getElementById('history-zoom-in-btn');
+
+    if (!zoomOutBtn || !zoomInBtn) {
+        devWarn('History zoom buttons not found in DOM');
+        return;
+    }
+
+    // Handle zoom out
+    zoomOutBtn.addEventListener('click', () => {
+        const currentScale = parseFloat(document.documentElement.style.getPropertyValue('--scale') || '1');
+        const newScale = Math.max(0.6, currentScale - 0.1);
+        applyHistoryScale(newScale);
+    });
+
+    // Handle zoom in
+    zoomInBtn.addEventListener('click', () => {
+        const currentScale = parseFloat(document.documentElement.style.getPropertyValue('--scale') || '1');
+        const newScale = Math.min(1.8, currentScale + 0.1);
+        applyHistoryScale(newScale);
+    });
+}
+
+function applyHistoryScale(scale: number): void {
+    // Set the CSS scale variable
+    document.documentElement.style.setProperty('--scale', scale.toString());
+
+    if (window.electronAPI) {
+        // Base dimensions at scale 1.0
+        const baseWidth = 1125;
+        const baseHeight = 875;
+
+        // Calculate scaled dimensions
+        const scaledWidth = Math.floor(baseWidth * scale);
+        const scaledHeight = Math.floor(baseHeight * scale);
+
+        // Resize window
+        window.electronAPI.resizeWindowToContent('history', scaledWidth, scaledHeight);
+
+        // Save the settings
+        setTimeout(() => {
+            window.electronAPI.saveWindowSize('history', scaledWidth, scaledHeight, scale);
+        }, 100);
+    }
+}
+
+// Load saved scale on startup
+(async () => {
+    if (window.electronAPI) {
+        try {
+            const savedSizes = await window.electronAPI.getSavedWindowSizes();
+            if (savedSizes && savedSizes.history && savedSizes.history.scale) {
+                const scale = savedSizes.history.scale as number;
+                document.documentElement.style.setProperty('--scale', scale.toString());
+                devLog(`Loaded saved history window scale: ${scale}`);
+            }
+        } catch (error) {
+            devWarn('Failed to load saved history window scale:', error);
+        }
+    }
+})();
+
 // Initialize dragging
 setupDragging();
+
+// Initialize zoom controls
+setupZoomControls();
 
 // Close button handler
 const closeButton = document.getElementById('close-button');
@@ -239,7 +307,7 @@ async function loadHistoryList(): Promise<void> {
 
         // Load summaries for each timestamp
         const historyItems: { timestamp: string; summary?: HistorySummary }[] = [];
-        
+
         for (const timestamp of timestamps) {
             try {
                 const summaryRes = await fetch(`/api/history/${timestamp}/summary`);
@@ -366,21 +434,21 @@ async function loadHistoryDetails(timestamp: string): Promise<void> {
             
             <div class="history-player-list">
                 ${sortedUsers.map(([uid, user], index) => {
-                    const percentage = totalDamage > 0 ? (user.total_damage.total / totalDamage * 100) : 0;
-                    const rank = index + 1;
-                    const playerName = getPlayerName(uid, user.name);
-                    
-                    // Translate profession
-                    const professionParts = (user.profession || '').split('-');
-                    const mainProf = professionParts[0];
-                    const subProf = professionParts[1];
-                    const translatedMainProf = translateProfession(mainProf);
-                    const translatedSubProf = subProf ? translateProfession(subProf) : null;
-                    const displayProfession = translatedSubProf 
-                        ? translatedSubProf
-                        : translatedMainProf;
-                    
-                    return `
+            const percentage = totalDamage > 0 ? (user.total_damage.total / totalDamage * 100) : 0;
+            const rank = index + 1;
+            const playerName = getPlayerName(uid, user.name);
+
+            // Translate profession
+            const professionParts = (user.profession || '').split('-');
+            const mainProf = professionParts[0];
+            const subProf = professionParts[1];
+            const translatedMainProf = translateProfession(mainProf);
+            const translatedSubProf = subProf ? translateProfession(subProf) : null;
+            const displayProfession = translatedSubProf
+                ? translatedSubProf
+                : translatedMainProf;
+
+            return `
                         <div class="history-player-item">
                             <div class="player-rank">#${rank}</div>
                             <div class="player-info">
@@ -414,7 +482,7 @@ async function loadHistoryDetails(timestamp: string): Promise<void> {
                             </button>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
 
@@ -446,9 +514,9 @@ async function loadPlayerSkills(timestamp: string, uid: string): Promise<void> {
     const modal = document.getElementById('skill-modal');
     const modalTitle = document.getElementById('skill-modal-title');
     const modalBody = document.getElementById('skill-modal-body');
-    
+
     if (!modal || !modalTitle || !modalBody) return;
-    
+
     // Show modal
     modal.style.display = 'flex';
     modalBody.innerHTML = `
@@ -457,38 +525,38 @@ async function loadPlayerSkills(timestamp: string, uid: string): Promise<void> {
             Loading skills...
         </div>
     `;
-    
+
     try {
         const response = await fetch(`/api/history/${timestamp}/skill/${uid}`);
         const result = await response.json();
-        
+
         if (result.code !== 0) {
             throw new Error('Failed to load skill data');
         }
-        
+
         const userData = result.data;
         const skills = userData.skills;
-        
+
         // Set modal title with player name from registry
         const playerName = getPlayerName(uid, userData.name);
         modalTitle.textContent = `${playerName} - Skill Breakdown`;
-        
+
         // Sort skills by damage
         const sortedSkills = Object.entries(skills).sort((a: any, b: any) => b[1].totalDamage - a[1].totalDamage);
-        
+
         // Calculate total damage
         const totalDamage = sortedSkills.reduce((sum: number, [, skill]: [string, any]) => sum + skill.totalDamage, 0);
-        
+
         // Render skills
         modalBody.innerHTML = `
             <div class="skill-list">
                 ${sortedSkills.map(([skillId, skill]: [string, any]) => {
-                    const percentage = totalDamage > 0 ? (skill.totalDamage / totalDamage * 100) : 0;
-                    const critRate = skill.totalCount > 0 ? (skill.critCount / skill.totalCount * 100) : 0;
-                    const luckyRate = skill.totalCount > 0 ? (skill.luckyCount / skill.totalCount * 100) : 0;
-                    const translatedName = translateSkill(skillId, skill.displayName);
-                    
-                    return `
+            const percentage = totalDamage > 0 ? (skill.totalDamage / totalDamage * 100) : 0;
+            const critRate = skill.totalCount > 0 ? (skill.critCount / skill.totalCount * 100) : 0;
+            const luckyRate = skill.totalCount > 0 ? (skill.luckyCount / skill.totalCount * 100) : 0;
+            const translatedName = translateSkill(skillId, skill.displayName);
+
+            return `
                         <div class="skill-item">
                             <div class="skill-header">
                                 <div class="skill-name">${translatedName}</div>
@@ -517,10 +585,10 @@ async function loadPlayerSkills(timestamp: string, uid: string): Promise<void> {
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
-        
+
     } catch (error) {
         devError('Failed to load player skills:', error);
         modalBody.innerHTML = `
@@ -537,11 +605,11 @@ async function checkHistoryStatus(): Promise<void> {
     try {
         const response = await fetch('/api/settings');
         const result = await response.json();
-        
+
         const enableBtn = document.getElementById('enable-history-btn');
         if (enableBtn && result.code === 0) {
             const enabled = result.data.enableHistorySave || false;
-            
+
             if (enabled) {
                 enableBtn.innerHTML = '<i class="fa-solid fa-toggle-on"></i> Saving Enabled';
                 enableBtn.classList.add('enabled');
@@ -560,11 +628,11 @@ async function toggleHistorySaving(): Promise<void> {
     try {
         const settingsRes = await fetch('/api/settings');
         const settings = await settingsRes.json();
-        
+
         if (settings.code !== 0) return;
-        
+
         const newEnabled = !settings.data.enableHistorySave;
-        
+
         const updateRes = await fetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -573,7 +641,7 @@ async function toggleHistorySaving(): Promise<void> {
                 enableHistorySave: newEnabled
             })
         });
-        
+
         const result = await updateRes.json();
         if (result.code === 0) {
             await checkHistoryStatus();
@@ -613,13 +681,51 @@ if (skillModal) {
     });
 }
 
+// Helper functions
+let lastWindowWidth = 0;
+let lastWindowHeight = 0;
+
+function resizeWindowToContent(force: boolean = false): void {
+    if (!window.electronAPI?.resizeWindowToContent) return;
+
+    requestAnimationFrame(() => {
+        const historyWindow = document.querySelector('.history-window');
+        if (historyWindow) {
+            const rect = historyWindow.getBoundingClientRect();
+            const width = Math.ceil(rect.width);
+            const height = Math.ceil(rect.height);
+
+            if (width < 100 || height < 50 || width > 2000 || height > 1500) {
+                devWarn('Invalid dimensions detected:', width, height);
+                return;
+            }
+
+            if (force) {
+                window.electronAPI.resizeWindowToContent('history', width, height);
+                lastWindowWidth = width;
+                lastWindowHeight = height;
+                devLog('Forced resize to:', width, height);
+            } else {
+                const widthChanged = Math.abs(width - lastWindowWidth) > 5;
+                const heightChanged = Math.abs(height - lastWindowHeight) > 5;
+
+                if (widthChanged || heightChanged) {
+                    window.electronAPI.resizeWindowToContent('history', width, height);
+                    lastWindowWidth = width;
+                    lastWindowHeight = height;
+                }
+            }
+        }
+    });
+}
+
 // Initial load
 (async () => {
     // Load translations from settings
     try {
         const settingsRes = await fetch('/api/settings');
         const settings = await settingsRes.json();
-        
+
         if (settings.code === 0 && settings.data.language) {
             const lang = settings.data.language;
             await loadTranslations(lang);
@@ -632,12 +738,14 @@ if (skillModal) {
         devError('Failed to load language settings:', error);
         await loadTranslations('en');
     }
-    
+
     // Load player registry
     await loadPlayerRegistry();
-    
+
     await checkHistoryStatus();
     await loadHistoryList();
+
+    setInterval(() => resizeWindowToContent(true), 100);
 })();
 
 // Refresh player registry periodically

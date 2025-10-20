@@ -8,10 +8,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => ipcRenderer.send('set-ignore-mouse-events', ignore, options),
     getWindowPosition: () => ipcRenderer.invoke('get-window-position'),
     setWindowPosition: (x: number, y: number) => ipcRenderer.send('set-window-position', x, y),
-    resizeWindowToContent: (width: number, height: number) => ipcRenderer.send('resize-window-to-content', width, height),
+    resizeWindowToContent: (windowType: string, width: number, height: number) => ipcRenderer.send('resize-window-to-content', windowType, width, height),
     openGroupWindow: () => ipcRenderer.send('open-group-window'),
     openHistoryWindow: () => ipcRenderer.send('open-history-window'),
     onWindowShown: (callback: () => void) => ipcRenderer.on('window-shown', () => callback()),
+    saveWindowSize: (windowType: string, width: number, height: number, scale?: number) => ipcRenderer.send('save-window-size', windowType, width, height, scale),
+    getSavedWindowSizes: () => ipcRenderer.invoke('get-saved-window-sizes'),
 });
 
 window.addEventListener('DOMContentLoaded', () => {

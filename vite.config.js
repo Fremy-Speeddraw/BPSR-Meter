@@ -11,7 +11,7 @@ function copyAssetsPlugin() {
     return {
         name: 'copy-assets',
         writeBundle() {
-            const publicDir = path.resolve(__dirname, 'public');
+            const publicDir = path.resolve(__dirname, 'dist/public');
             
             // Copy icons
             const srcIcons = path.resolve(__dirname, 'src/icons');
@@ -36,7 +36,7 @@ export default defineConfig({
     root: 'src',
     publicDir: false, // We'll manually copy icons and css
     build: {
-        outDir: '../public',
+        outDir: '../dist/public',
         emptyOutDir: true,
         rollupOptions: {
             input: {

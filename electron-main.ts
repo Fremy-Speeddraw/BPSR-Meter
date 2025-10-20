@@ -40,9 +40,57 @@ let groupWindow: BrowserWindow | null;
 let historyWindow: BrowserWindow | null;
 let serverProcess: ChildProcess | null;
 let server_port: number = 8989;
-let lastMainWindowSize = { width: 650, height: 600 }; // Track last valid content size
+let lastMainWindowSize = { width: 650, height: 700 };
+let lastGroupWindowSize = { width: 480, height: 530 };
+let lastHistoryWindowSize = { width: 800, height: 600 };
 let isLocked: boolean = false;
 logToFile('==== ELECTRON START ====');
+
+// Helper functions for window size persistence
+function getSettingsPath(): string {
+    const userDataPath = app.getPath('userData');
+    return path.join(userDataPath, 'settings.json');
+}
+
+async function loadWindowSizes(): Promise<{ main?: { width: number; height: number; scale?: number }, group?: { width: number; height: number }, history?: { width: number; height: number } }> {
+    try {
+        const settingsPath = getSettingsPath();
+        const data = await fs.promises.readFile(settingsPath, 'utf8');
+        const settings = JSON.parse(data);
+        return settings.windowSizes || {};
+    } catch (error) {
+        logToFile('No saved window sizes found, using defaults');
+        return {};
+    }
+}
+
+async function saveWindowSize(windowType: 'main' | 'group' | 'history', width: number, height: number, scale?: number): Promise<void> {
+    try {
+        const settingsPath = getSettingsPath();
+        let settings: any = {};
+
+        try {
+            const data = await fs.promises.readFile(settingsPath, 'utf8');
+            settings = JSON.parse(data);
+        } catch (error) {
+            logToFile('Creating new settings file');
+        }
+
+        if (!settings.windowSizes) {
+            settings.windowSizes = {};
+        }
+
+        settings.windowSizes[windowType] = { width, height };
+        if (scale !== undefined) {
+            settings.windowSizes[windowType].scale = scale;
+        }
+
+        await fs.promises.writeFile(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
+        logToFile(`Saved ${windowType} window size: ${width}x${height}${scale ? ` (scale: ${scale})` : ''}`);
+    } catch (error) {
+        logToFile(`Error saving window size: ${error}`);
+    }
+}
 
 // Function to check if a port is in use
 const checkPort = (port: number): Promise<boolean> => {
@@ -117,13 +165,18 @@ async function createWindow(): Promise<void> {
     server_port = await findAvailablePort();
     logToFile('Available port found: ' + server_port);
 
+    // Load saved window sizes
+    const savedSizes = await loadWindowSizes();
+    const mainSize = savedSizes.main || { width: 650, height: 700 };
+
     mainWindow = new BrowserWindow({
-        width: 650,
-        height: 600,
+        width: mainSize.width,
+        height: mainSize.height,
+        maxHeight: 1000,
         transparent: true,
         frame: false,
         alwaysOnTop: true,
-        resizable: false,
+        resizable: true,
         useContentSize: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -133,16 +186,12 @@ async function createWindow(): Promise<void> {
         icon: path.join(__dirname, 'icon.ico'),
     });
 
-    // Configure window to always be on top with maximum priority
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
-
-    // Make window click-through by default
     mainWindow.setIgnoreMouseEvents(false, { forward: true });
 
     // Determine absolute path to server.js based on environment
-    // Since main is dist/electron-main.js, __dirname is dist/ in both dev and production
     const serverPath = path.join(__dirname, 'server.js');
-    
+
     // Get user data path for storing settings and logs
     const userDataPath = app.getPath('userData');
     logToFile('User data path: ' + userDataPath);
@@ -271,11 +320,37 @@ async function createWindow(): Promise<void> {
         }
     });
 
-    ipcMain.on('resize-window-to-content', (_event: IpcMainEvent, width: number, height: number) => {
-        if (mainWindow && width && height) {
-            const targetWidth = Math.min(width + 10, 1200);
-            const targetHeight = Math.min(height + 10, 800);
-            mainWindow.setContentSize(targetWidth, targetHeight);
+    ipcMain.on('resize-window-to-content', (_event: IpcMainEvent, windowType: 'main' | 'group' | 'history', width: number, height: number) => {
+        if (windowType === 'group' && width && height) {
+            const targetWidth = Math.min(width, width);
+            const targetHeight = Math.min(height, height);
+            groupWindow.setContentSize(targetWidth, targetHeight, false);
+
+            setTimeout(() => {
+                if (groupWindow) {
+                    const bounds = groupWindow.getBounds();
+                    lastGroupWindowSize = { width: bounds.width, height: bounds.height };
+                }
+            }, 10);
+        }
+
+        if (windowType === 'history' && width && height) {
+            const targetWidth = Math.min(width, width);
+            const targetHeight = Math.min(height, height);
+            historyWindow.setContentSize(targetWidth, targetHeight, false);
+
+            setTimeout(() => {
+                if (historyWindow) {
+                    const bounds = historyWindow.getBounds();
+                    lastHistoryWindowSize = { width: bounds.width, height: bounds.height };
+                }
+            }, 10);
+        }
+
+        if (windowType === 'main' && width && height) {
+            const targetWidth = Math.min(width, width);
+            const targetHeight = Math.min(height, height);
+            mainWindow.setContentSize(targetWidth, targetHeight, false);
 
             setTimeout(() => {
                 if (mainWindow) {
@@ -283,31 +358,42 @@ async function createWindow(): Promise<void> {
                     lastMainWindowSize = { width: bounds.width, height: bounds.height };
                 }
             }, 10);
-
-            logToFile(`Main Window resized to: ${targetWidth}x${targetHeight}`);
         }
     });
 
+    // Handle saving window size
+    ipcMain.on('save-window-size', (_event: IpcMainEvent, windowType: 'main' | 'group' | 'history', width: number, height: number, scale?: number) => {
+        saveWindowSize(windowType, width, height, scale);
+    });
+
+    // Handle getting saved window sizes
+    ipcMain.handle('get-saved-window-sizes', async () => {
+        return await loadWindowSizes();
+    });
+
     // Handle opening group management window
-    ipcMain.on('open-group-window', () => {
+    ipcMain.on('open-group-window', async () => {
         if (groupWindow) {
             groupWindow.focus();
             return;
         }
 
+        // Load saved window sizes
+        const savedSizes = await loadWindowSizes();
+        const groupSize = savedSizes.group || { width: 480, height: 530 };
+
         groupWindow = new BrowserWindow({
-            width: 480,
-            height: 530,
-            minWidth: 480,
-            maxWidth: 480,
-            minHeight: 530,
-            maxHeight: 530,
+            width: groupSize.width,
+            height: groupSize.height,
+            minWidth: 400,
+            minHeight: 450,
             transparent: true,
             frame: false,
             alwaysOnTop: true,
-            resizable: false,
+            resizable: true,
             skipTaskbar: true,
             show: false,
+            useContentSize: true,
             webPreferences: {
                 preload: path.join(__dirname, 'preload.js'),
                 nodeIntegration: true,
@@ -319,19 +405,6 @@ async function createWindow(): Promise<void> {
 
         groupWindow.setAlwaysOnTop(true, 'screen-saver');
         groupWindow.setIgnoreMouseEvents(false);
-
-        groupWindow.on('will-resize', (event) => {
-            event.preventDefault();
-        });
-
-        groupWindow.on('resize', () => {
-            if (groupWindow) {
-                const bounds = groupWindow.getBounds();
-                if (bounds.width !== 480 || bounds.height !== 530) {
-                    groupWindow.setBounds({ x: bounds.x, y: bounds.y, width: 480, height: 530 }, false);
-                }
-            }
-        });
 
         groupWindow.once('ready-to-show', () => {
             if (groupWindow) {
@@ -362,21 +435,28 @@ async function createWindow(): Promise<void> {
     });
 
     // Open History Window handler
-    ipcMain.on('open-history-window', () => {
+    ipcMain.on('open-history-window', async () => {
         if (historyWindow) {
             historyWindow.focus();
             return;
         }
 
+        // Load saved window sizes
+        const savedSizes = await loadWindowSizes();
+        const historySize = savedSizes.history || { width: 1125, height: 875 };
+
         historyWindow = new BrowserWindow({
-            width: 1125,
-            height: 875,
+            width: historySize.width,
+            height: historySize.height,
+            minWidth: 800,
+            minHeight: 600,
             transparent: true,
             frame: false,
             alwaysOnTop: true,
             resizable: true,
             skipTaskbar: true,
             show: false,
+            useContentSize: true,
             webPreferences: {
                 preload: path.join(__dirname, 'preload.js'),
                 nodeIntegration: true,
@@ -393,15 +473,6 @@ async function createWindow(): Promise<void> {
             if (historyWindow) {
                 historyWindow.show();
                 logToFile('History window ready and shown');
-            }
-        });
-
-        historyWindow.on('resize', () => {
-            if (historyWindow) {
-                const bounds = historyWindow.getBounds();
-                if (bounds.width !== 1125 || bounds.height !== 875) {
-                    historyWindow.setBounds({ x: bounds.x, y: bounds.y, width: 1125, height: 875 }, false);
-                }
             }
         });
 
@@ -439,16 +510,16 @@ async function createWindow(): Promise<void> {
                     senderWindow.setBounds({
                         x: x,
                         y: y,
-                        width: 480,
-                        height: 530
+                        width: lastGroupWindowSize.width,
+                        height: lastGroupWindowSize.height
                     }, false);
                     break;
                 case historyWindow:
                     senderWindow.setBounds({
                         x: x,
                         y: y,
-                        width: 1125,
-                        height: 875
+                        width: lastHistoryWindowSize.width,
+                        height: lastHistoryWindowSize.height
                     }, false);
                     break;
                 case mainWindow:
@@ -456,7 +527,7 @@ async function createWindow(): Promise<void> {
                         x: x,
                         y: y,
                         width: lastMainWindowSize.width,
-                        height: lastMainWindowSize.height
+                        height: 700
                     }, false);
                     break;
                 default:
@@ -468,21 +539,21 @@ async function createWindow(): Promise<void> {
 }
 
 app.whenReady()
-.then(() => {
-    logToFile('Electron app ready, starting createWindow()');
-    createWindow();
+    .then(() => {
+        logToFile('Electron app ready, starting createWindow()');
+        createWindow();
 
-    app.on('activate', () => {
-        logToFile('App activated');
-        if (BrowserWindow.getAllWindows().length === 0) {
-            logToFile('No windows found, creating new window');
-            createWindow();
-        }
+        app.on('activate', () => {
+            logToFile('App activated');
+            if (BrowserWindow.getAllWindows().length === 0) {
+                logToFile('No windows found, creating new window');
+                createWindow();
+            }
+        });
+    }).catch((error: Error) => {
+        logToFile('ERROR in app.whenReady(): ' + error.message);
+        logToFile('ERROR STACK: ' + error.stack);
     });
-}).catch((error: Error) => {
-    logToFile('ERROR in app.whenReady(): ' + error.message);
-    logToFile('ERROR STACK: ' + error.stack);
-});
 
 app.on('window-all-closed', () => {
     logToFile('All windows closed');

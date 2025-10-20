@@ -1,6 +1,6 @@
 {
     "name": "bpsr-meter",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "description": "BPSR Meter",
     "author": "Fremy-Speeddraw",
     "type": "module",
@@ -18,7 +18,6 @@
         "build:all": "npm run build:ts && npm run build:renderer && npm run copy-assets",
         "copy-assets": "node build-copy-assets.js",
         "watch": "tsc --watch",
-        "watch:assets": "node dev-watch.js",
         "watch:renderer": "vite build --watch",
         "start": "npm run build:ts && electron .",
         "start:dev": "electron .",
@@ -60,7 +59,6 @@
     "pkg": {
         "scripts": "server.js",
         "assets": [
-            "public/**/*",
             "tables/**/*",
             "ip.txt",
             "settings.json",
@@ -79,7 +77,6 @@
             "dist/**/*",
             "src/**/*",
             "algo/**/*",
-            "public/**/*",
             "tables/**/*",
             "settings.json",
             "users.json",

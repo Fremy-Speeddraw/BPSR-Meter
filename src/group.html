@@ -21,20 +21,18 @@
                 color: var(--text-primary);
                 font-family: 'Inter', sans-serif;
                 overflow: hidden;
-                width: 480px;
-                height: 530px;
-                max-width: 480px;
-                max-height: 530px;
+                width: 100vw;
+                height: 100vh;
                 position: fixed;
                 top: 0;
                 left: 0;
+                -webkit-app-region: no-drag;
+                zoom: var(--scale);
             }
 
             .group-meter {
-                width: 480px;
-                height: 530px;
-                max-width: 480px;
-                max-height: 530px;
+                width: 100%;
+                height: 100%;
                 background: var(--bg-dark);
                 backdrop-filter: blur(8px);
                 padding: 1px;
@@ -44,6 +42,7 @@
                 border-radius: var(--radius);
                 box-sizing: border-box;
                 overflow: hidden;
+                position: relative;
             }
 
             .group-header {
@@ -96,7 +95,6 @@
                 overflow-x: hidden;
                 flex: 1 1 auto;
                 min-height: 0;
-                max-height: 480px;
                 pointer-events: auto;
             }
 
@@ -315,6 +313,13 @@
                     <i class="fa-solid fa-users"></i> Group Management
                 </div>
                 <div style="flex: 1;"></div>
+                <!-- Zoom controls -->
+                <button class="control-button" id="group-zoom-out-btn" title="Zoom Out">
+                    <i class="fa-solid fa-minus"></i>
+                </button>
+                <button class="control-button" id="group-zoom-in-btn" title="Zoom In">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
                 <button class="control-button" id="group-close-button" title="Close window">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
