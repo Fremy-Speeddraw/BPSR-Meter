@@ -11,8 +11,7 @@ export default defineConfig({
             copy({
                 targets: [
                     { src: 'algo/blueprotobuf.js', dest: 'out/main/algo' },
-                    { src: 'tables/*.json', dest: 'out/main/tables' },
-                    { src: 'translations/*.json', dest: 'out/translations' }
+                    { src: 'translations/*.json', dest: 'out/main/translations' },
                 ],
                 hook: 'writeBundle'
             })
@@ -65,7 +64,8 @@ export default defineConfig({
             tailwindcss(),
             copy({
                 targets: [
-                    { src: 'src/icons/*', dest: 'out/renderer/icons' }
+                    { src: 'src/icons/*', dest: 'out/renderer/icons' },
+                    { src: 'translations/*.json', dest: 'out/renderer/translations' },
                 ],
                 hook: 'writeBundle'
             }),

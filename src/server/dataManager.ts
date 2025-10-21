@@ -4,17 +4,9 @@ import { readFileSync } from "fs";
 import type { Logger, GlobalSettings, SkillConfig } from "../types/index";
 
 // Use user data path in production, current directory in development
-const USER_DATA_DIR =
-    process.env.NODE_ENV === "development"
-        ? process.cwd()
-        : process.env.USER_DATA_PATH;
-
-const skillConfig: SkillConfig = JSON.parse(
-    readFileSync(
-        path.join(__dirname, "..", "..", "tables", "skill_names.json"),
-        "utf-8",
-    ),
-).skill_names;
+const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
+const TRANSLATIONS_DIR = path.join(__dirname, "translations");
+const skillConfig: SkillConfig = JSON.parse(readFileSync(TRANSLATIONS_DIR + "/zh.json", "utf-8")).skills;
 
 export class Lock {
     private queue: Array<() => void> = [];
@@ -228,7 +220,7 @@ export class StatisticData {
         }
         const totalPerSecond =
             (this.stats.total / (this.timeRange[1] - this.timeRange[0])) *
-                1000 || 0;
+            1000 || 0;
         if (!Number.isFinite(totalPerSecond)) return 0;
         return totalPerSecond;
     }
@@ -433,18 +425,13 @@ export class UserData {
         for (const [skillId, stat] of this.skillUsage) {
             const critCount = stat.count.critical;
             const luckyCount = stat.count.lucky;
-            const critRate =
-                stat.count.total > 0 ? critCount / stat.count.total : 0;
-            const luckyRate =
-                stat.count.total > 0 ? luckyCount / stat.count.total : 0;
+            const critRate = stat.count.total > 0 ? critCount / stat.count.total : 0;
+            const luckyRate = stat.count.total > 0 ? luckyCount / stat.count.total : 0;
             const skillConfigEntry = skillConfig[skillId % 1000000000];
-            const name =
-                typeof skillConfigEntry === "string"
-                    ? skillConfigEntry
-                    : (skillConfigEntry?.name ?? skillId % 1000000000);
+            const name = typeof skillConfigEntry === "string" ? skillConfigEntry : (skillConfigEntry?.name ?? skillId % 1000000000);
             const elementype = stat.element;
 
-            skills[skillId] = {
+            skills[skillId % 1000000000] = {
                 displayName: name,
                 type: stat.type,
                 elementype: elementype,

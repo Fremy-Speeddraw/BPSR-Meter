@@ -12,14 +12,13 @@ import Sniffer from "../../src/server/sniffer";
 import initializeApi from "../../src/server/api";
 import PacketProcessor from "../../algo/packet";
 
-const USER_DATA_DIR =
-    process.env.NODE_ENV === "development"
-        ? process.cwd()
-        : process.env.USER_DATA_PATH;
+const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
 const SETTINGS_PATH = path.join(USER_DATA_DIR, "settings.json");
 const PLAYER_REGISTRY_PATH = path.join(USER_DATA_DIR, "player_registry.json");
 
 const globalSettings: GlobalSettings = {
+    availableLanguages: ["en", "zh"],
+    language: "en",
     selectedPlayers: [],
     filterMode: "all",
     isPaused: false,
@@ -30,6 +29,10 @@ const globalSettings: GlobalSettings = {
     enableHistorySave: false,
     lastPausedAt: null,
     lastResumedAt: null,
+    manualGroup: {
+        enabled: false,
+        members: [],
+    },
 };
 
 const playerRegistry: PlayerRegistry = {};

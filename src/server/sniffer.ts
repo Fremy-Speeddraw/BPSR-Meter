@@ -6,6 +6,9 @@ import { spawn } from "child_process";
 import findDefaultNetworkDevice from "../../algo/netInterfaceUtil";
 import { Lock } from "./dataManager";
 import type { UserDataManager } from "./dataManager";
+import type { Logger } from "winston";
+import type { GlobalSettings } from "../types";
+import type PacketProcessor from "../../algo/packet";
 
 const decoders = cap.decoders;
 const PROTOCOL = decoders.PROTOCOL;
@@ -19,7 +22,7 @@ const NPCAP_INSTALLER_PATH = path.join(
     "npcap-1.83.exe",
 );
 
-async function checkAndInstallNpcap(logger) {
+async function checkAndInstallNpcap(logger: Logger) {
     try {
         const devices = Cap.deviceList();
         if (
@@ -31,7 +34,7 @@ async function checkAndInstallNpcap(logger) {
         }
         logger.info("Npcap detected and functional.");
         return true;
-    } catch (e) {
+    } catch (e: Error | any) {
         logger.warn(`Npcap not detected or not functional: ${e.message}`);
         logger.info("Attempting to install Npcap...");
 
@@ -59,7 +62,7 @@ async function checkAndInstallNpcap(logger) {
                 "Npcap installer launched. Please install Npcap and then restart this application.",
             );
             return false;
-        } catch (spawnError) {
+        } catch (spawnError: any) {
             logger.error(
                 `Error running Npcap installer: ${spawnError.message}`,
             );
@@ -72,28 +75,28 @@ async function checkAndInstallNpcap(logger) {
 }
 
 class Sniffer {
-    logger;
-    userDataManager: UserDataManager;
-    globalSettings;
-    current_server;
-    _data;
-    tcp_next_seq;
-    tcp_cache;
-    tcp_last_time;
-    tcp_lock;
-    fragmentIpCache;
-    FRAGMENT_TIMEOUT;
-    eth_queue;
-    capInstance;
-    packetProcessor;
-    isPaused;
+    #data: Buffer;
+    public logger: Logger;
+    public userDataManager: UserDataManager;
+    public globalSettings: GlobalSettings;
+    public current_server: string;
+    public tcp_next_seq: number;
+    public tcp_cache: Map<number, any>;
+    public tcp_last_time: number;
+    public tcp_lock: Lock;
+    public fragmentIpCache: Map<string, any>;
+    public FRAGMENT_TIMEOUT: number;
+    public eth_queue: any[];
+    public capInstance: cap.Cap | null;
+    public packetProcessor: PacketProcessor | null;
+    public isPaused: boolean;
 
-    constructor(logger, userDataManager, globalSettings) {
+    constructor(logger: Logger, userDataManager: UserDataManager, globalSettings: GlobalSettings) {
         this.logger = logger;
         this.userDataManager = userDataManager;
         this.globalSettings = globalSettings; // Pasar globalSettings al sniffer
         this.current_server = "";
-        this._data = Buffer.alloc(0);
+        this.#data = Buffer.alloc(0);
         this.tcp_next_seq = -1;
         this.tcp_cache = new Map();
         this.tcp_last_time = 0;
@@ -106,7 +109,7 @@ class Sniffer {
         this.isPaused = false; // Estado de pausa para el sniffer
     }
 
-    setPaused(paused) {
+    setPaused(paused: boolean) {
         // Toggle paused state. When resuming, reset detection buffers and state so
         // server detection can happen immediately instead of waiting several seconds.
         const wasPaused = this.isPaused;
@@ -125,7 +128,7 @@ class Sniffer {
                     this.userDataManager &&
                         this.userDataManager.refreshEnemyCache &&
                         this.userDataManager.refreshEnemyCache();
-                } catch (e) {}
+                } catch (e) { }
                 this.logger.info(
                     "Sniffer resumed: detection state reset for faster server detection",
                 );
@@ -143,28 +146,28 @@ class Sniffer {
     }
 
     clearTcpCache() {
-        this._data = Buffer.alloc(0);
+        this.#data = Buffer.alloc(0);
         this.tcp_next_seq = -1;
         this.tcp_last_time = 0;
         this.tcp_cache.clear();
     }
 
-    getTCPPacket(frameBuffer, ethOffset) {
+    getTCPPacket(frameBuffer: Buffer, ethOffset: number): Buffer | null {
         const ipPacket = decoders.IPV4(frameBuffer, ethOffset);
         const ipId = ipPacket.info.id;
         const isFragment = (ipPacket.info.flags & 0x1) !== 0;
-        const _key = `${ipId}-${ipPacket.info.srcaddr}-${ipPacket.info.dstaddr}-${ipPacket.info.protocol}`;
+        const key = `${ipId}-${ipPacket.info.srcaddr}-${ipPacket.info.dstaddr}-${ipPacket.info.protocol}`;
         const now = Date.now();
 
         if (isFragment || ipPacket.info.fragoffset > 0) {
-            if (!this.fragmentIpCache.has(_key)) {
-                this.fragmentIpCache.set(_key, {
+            if (!this.fragmentIpCache.has(key)) {
+                this.fragmentIpCache.set(key, {
                     fragments: [],
                     timestamp: now,
                 });
             }
 
-            const cacheEntry = this.fragmentIpCache.get(_key);
+            const cacheEntry = this.fragmentIpCache.get(key);
             const ipBuffer = Buffer.from(frameBuffer.subarray(ethOffset));
             cacheEntry.fragments.push(ipBuffer);
             cacheEntry.timestamp = now;
@@ -175,7 +178,7 @@ class Sniffer {
 
             const fragments = cacheEntry.fragments;
             if (!fragments) {
-                this.logger.error(`Can't find fragments for ${_key}`);
+                this.logger.error(`Can't find fragments for ${key}`);
                 return null;
             }
 
@@ -206,7 +209,7 @@ class Sniffer {
                 fragment.payload.copy(fullPayload, fragment.offset);
             }
 
-            this.fragmentIpCache.delete(_key);
+            this.fragmentIpCache.delete(key);
             return fullPayload;
         }
 
@@ -218,7 +221,7 @@ class Sniffer {
         );
     }
 
-    async processEthPacket(frameBuffer) {
+    async processEthPacket(frameBuffer: Buffer) {
         if (this.isPaused) return; // No procesar paquetes si está pausado
 
         var ethPacket = decoders.Ethernet(frameBuffer);
@@ -276,9 +279,9 @@ class Sniffer {
                                             this.globalSettings
                                                 .autoClearOnServerChange &&
                                             this.userDataManager.lastLogTime !==
-                                                0 &&
+                                            0 &&
                                             this.userDataManager.users.size !==
-                                                0
+                                            0
                                         ) {
                                             const lp =
                                                 this.globalSettings
@@ -304,13 +307,13 @@ class Sniffer {
                                                     null;
                                                 this.globalSettings.lastResumedAt =
                                                     null;
-                                            } catch (e) {}
+                                            } catch (e) { }
                                         }
                                         console.log(
                                             "Game server detected. Measuring DPS...",
                                         );
                                     }
-                                } catch (e) {}
+                                } catch (e) { }
                             } while (data1 && data1.length);
                         }
                     }
@@ -361,9 +364,8 @@ class Sniffer {
                                     // Reset pause/resume markers so they don't affect future checks
                                     try {
                                         this.globalSettings.lastPausedAt = null;
-                                        this.globalSettings.lastResumedAt =
-                                            null;
-                                    } catch (e) {}
+                                        this.globalSettings.lastResumedAt = null;
+                                    } catch (e) { }
                                 }
                                 console.log(
                                     "Game server detected by login packet. Measuring DPS...",
@@ -371,7 +373,7 @@ class Sniffer {
                             }
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
                 return;
             }
 
@@ -393,33 +395,29 @@ class Sniffer {
             while (this.tcp_cache.has(this.tcp_next_seq)) {
                 const seq = this.tcp_next_seq;
                 const cachedTcpData = this.tcp_cache.get(seq);
-                this._data =
-                    this._data.length === 0
+                this.#data =
+                    this.#data.length === 0
                         ? cachedTcpData
-                        : Buffer.concat([this._data, cachedTcpData]);
+                        : Buffer.concat([this.#data, cachedTcpData]);
                 this.tcp_next_seq = (seq + cachedTcpData.length) >>> 0;
                 this.tcp_cache.delete(seq);
                 this.tcp_last_time = Date.now();
             }
 
-            while (this._data.length > 4) {
-                let packetSize = this._data.readUInt32BE();
+            while (this.#data.length > 4) {
+                let packetSize = this.#data.readUInt32BE();
 
-                if (this._data.length < packetSize) break;
+                if (this.#data.length < packetSize) break;
 
-                if (this._data.length >= packetSize) {
-                    const packet = this._data.subarray(0, packetSize);
-                    this._data = this._data.subarray(packetSize);
+                if (this.#data.length >= packetSize) {
+                    const packet = this.#data.subarray(0, packetSize);
+                    this.#data = this.#data.subarray(packetSize);
                     if (this.packetProcessor) {
-                        this.packetProcessor.processPacket(
-                            packet,
-                            this.isPaused,
-                            this.globalSettings,
-                        );
+                        this.packetProcessor.processPacket(packet);
                     }
                 } else if (packetSize > 0x0fffff) {
                     this.logger.error(
-                        `Invalid Length!! ${this._data.length},${packetSize},${this._data.toString("hex")},${this.tcp_next_seq}`,
+                        `Invalid Length!! ${this.#data.length},${packetSize},${this.#data.toString("hex")},${this.tcp_next_seq}`,
                     );
                     process.exit(1);
                     break;
@@ -430,8 +428,9 @@ class Sniffer {
         }
     }
 
-    async start(deviceNum, PacketProcessorClass) {
+    async start(deviceNum: number | string, PacketProcessorClass: typeof PacketProcessor) {
         const npcapReady = await checkAndInstallNpcap(this.logger);
+
         if (!npcapReady) {
             throw new Error("Npcap no está listo. La aplicación debe salir.");
         }
@@ -447,7 +446,7 @@ class Sniffer {
                     num = device_num;
                     deviceFound = true;
                 } else {
-                    await new Promise((resolve) => setTimeout(resolve, 5000));
+                    await new Promise((resolve) => setTimeout(resolve, 3000));
                 }
             }
         }
@@ -474,7 +473,7 @@ class Sniffer {
         if (linkType !== "ETHERNET") {
             this.logger.error(
                 "The device seems to be WRONG! Please check the device! Device type: " +
-                    linkType,
+                linkType,
             );
         }
         this.capInstance.setMinBytes && this.capInstance.setMinBytes(0);
@@ -515,7 +514,7 @@ class Sniffer {
             ) {
                 this.logger.warn(
                     "Cannot capture the next packet! Is the game closed or disconnected? seq: " +
-                        this.tcp_next_seq,
+                    this.tcp_next_seq,
                 );
                 this.current_server = "";
                 this.clearTcpCache();

@@ -4,19 +4,11 @@ import path from "path";
 import { promises as fsPromises } from "fs";
 import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
-import type {
-    Logger,
-    GlobalSettings,
-    ApiResponse,
-    PlayerRegistry,
-} from "../types/index";
+import type { Logger, GlobalSettings, ApiResponse, PlayerRegistry } from "../types/index";
 import type { UserDataManager } from "./dataManager";
 
 // Use user data path in production, current directory in development
-const USER_DATA_DIR =
-    process.env.NODE_ENV === "development"
-        ? process.cwd()
-        : process.env.USER_DATA_PATH;
+const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
 const SETTINGS_PATH = path.join(USER_DATA_DIR, "settings.json");
 const PLAYER_REGISTRY_PATH = path.join(USER_DATA_DIR, "player_registry.json");
 
@@ -391,14 +383,9 @@ function initializeApi(
 
     app.get("/api/translations/:lang", async (req: Request, res: Response) => {
         const { lang } = req.params;
-        const translationPath = path.join(
-            __dirname,
-            "..",
-            "..",
-            "translations",
-            `${lang}.json`,
-        );
-
+        const translationPath = process.env.NODE_ENV === 'development' ?
+            path.join(__dirname, "..", "..", "translations", `${lang}.json`) :
+            path.join(__dirname, "translations", `${lang}.json`);
         try {
             const data = await fsPromises.readFile(translationPath, "utf8");
             res.json({
@@ -510,6 +497,7 @@ function initializeApi(
             uid,
             name: name || "Unknown",
         });
+
         await fsPromises.writeFile(
             SETTINGS_PATH,
             JSON.stringify(globalSettings, null, 2),

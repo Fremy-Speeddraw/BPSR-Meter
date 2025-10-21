@@ -1,4 +1,9 @@
 {
+    "availableLanguages": [
+        "en",
+        "zh"
+    ],
+    "language": "en",
     "selectedPlayers": [],
     "filterMode": "all",
     "isPaused": false,
@@ -9,15 +14,10 @@
     "enableHistorySave": true,
     "lastPausedAt": null,
     "lastResumedAt": null,
-    "playerRegistry": {},
-    "language": "en",
-    "availableLanguages": [
-        "en",
-        "zh"
-    ],
     "manualGroup": {
         "enabled": false,
         "members": []
     },
+    "playerRegistry": {},
     "windowSizes": {}
 }

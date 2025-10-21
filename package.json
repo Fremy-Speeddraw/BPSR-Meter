@@ -1,6 +1,6 @@
 {
     "name": "bpsr-meter",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "BPSR Meter",
     "author": "Fremy-Speeddraw",
     "type": "module",
@@ -55,8 +55,6 @@
         "concurrently": "^9.1.2",
         "electron": "^38.0.0",
         "electron-builder": "^26.0.12",
-        "electron-reload": "^2.0.0-alpha.1",
-        "electron-reloader": "^1.2.3",
         "electron-vite": "^4.0.1",
         "prettier": "^3.6.2",
         "protobufjs-cli": "^1.1.3",
@@ -66,8 +64,7 @@
     "pkg": {
         "scripts": "server.js",
         "assets": [
-            "tables/**/*",
-            "ip.txt",
+            "translations/**/*",
             "settings.json",
             "users.json",
             "node_modules/cap/**/*"
@@ -83,7 +80,6 @@
         "files": [
             "out/**/*",
             "algo/**/*",
-            "tables/**/*",
             "translations/**/*",
             "settings.json",
             "users.json",

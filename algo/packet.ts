@@ -4,13 +4,17 @@ import pbjs from 'protobufjs/minimal.js';
 import fs from 'fs';
 import pb from './blueprotobuf-esm';
 import path from 'path';
+import type { Logger } from 'winston';
+import type { UserDataManager } from '../src/server/dataManager';
 
-const monsterNames = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'main/tables', 'monster_names.json'), 'utf-8'));
+const TRANSLATIONS_DIR = path.join(__dirname, "translations");
+const monsterNames = JSON.parse(fs.readFileSync(TRANSLATIONS_DIR + "/zh.json", "utf-8")).monsters;
 
 class BinaryReader {
-    buffer;
-    offset;
-    constructor(buffer, offset = 0) {
+    public buffer: Buffer;
+    public offset: number;
+
+    constructor(buffer: Buffer, offset = 0) {
         this.buffer = buffer;
         this.offset = offset;
     }
@@ -61,13 +65,13 @@ class BinaryReader {
         return this.buffer.readUInt16BE(this.offset);
     }
 
-    readBytes(length) {
+    readBytes(length: number) {
         const value = this.buffer.subarray(this.offset, this.offset + length);
         this.offset += length;
         return value;
     }
 
-    peekBytes(length) {
+    peekBytes(length: number) {
         return this.buffer.subarray(this.offset, this.offset + length);
     }
 
@@ -154,7 +158,7 @@ const EDamageProperty = {
     Count: 9,
 };
 
-const getProfessionNameFromId = (professionId) => {
+const getProfessionNameFromId = (professionId: number) => {
     switch (professionId) {
         case ProfessionType.雷影剑士:
             return '雷影剑士';
@@ -183,7 +187,7 @@ const getProfessionNameFromId = (professionId) => {
     }
 };
 
-const getDamageElement = (damageProperty) => {
+const getDamageElement = (damageProperty: number) => {
     switch (damageProperty) {
         case EDamageProperty.General:
             return '⚔️物';
@@ -210,7 +214,7 @@ const getDamageElement = (damageProperty) => {
     }
 };
 
-const getDamageSource = (damageSource) => {
+const getDamageSource = (damageSource: number) => {
     switch (damageSource) {
         case EDamageSource.EDamageSourceSkill:
             return 'Skill';
@@ -229,15 +233,15 @@ const getDamageSource = (damageSource) => {
     }
 };
 
-const isUuidPlayer = (uuid) => {
+const isUuidPlayer = (uuid: Long) => {
     return (uuid.toBigInt() & 0xffffn) === 640n;
 };
 
-const isUuidMonster = (uuid) => {
+const isUuidMonster = (uuid: Long) => {
     return (uuid.toBigInt() & 0xffffn) === 64n;
 };
 
-const doesStreamHaveIdentifier = (reader) => {
+const doesStreamHaveIdentifier = (reader: BinaryReader) => {
     let identifier = reader.readUInt32LE();
     reader.readInt32();
     if (identifier !== 0xfffffffe) return false;
@@ -247,7 +251,7 @@ const doesStreamHaveIdentifier = (reader) => {
     return true;
 };
 
-const streamReadString = (reader) => {
+const streamReadString = (reader: BinaryReader) => {
     const length = reader.readUInt32LE();
     reader.readInt32();
     const buffer = reader.readBytes(length);
@@ -258,14 +262,15 @@ const streamReadString = (reader) => {
 let currentUserUuid = Long.ZERO;
 
 class PacketProcessor {
-    logger;
-    userDataManager;
-    constructor({ logger, userDataManager }) {
+    logger: Logger;
+    userDataManager: UserDataManager;
+
+    constructor({ logger, userDataManager }: { logger: Logger; userDataManager: UserDataManager }) {
         this.logger = logger;
         this.userDataManager = userDataManager;
     }
 
-    _decompressPayload(buffer) {
+    #decompressPayload(buffer: Buffer) {
         if (!zlib.zstdDecompressSync) {
             this.logger.warn('zstdDecompressSync is not available! Please check your Node.js version!');
             return;
@@ -273,7 +278,7 @@ class PacketProcessor {
         return zlib.zstdDecompressSync(buffer);
     }
 
-    _processAoiSyncDelta(aoiSyncDelta) {
+    #processAoiSyncDelta(aoiSyncDelta) {
         if (!aoiSyncDelta) return;
 
         let targetUuid = aoiSyncDelta.Uuid;
@@ -285,9 +290,9 @@ class PacketProcessor {
         const attrCollection = aoiSyncDelta.Attrs;
         if (attrCollection && attrCollection.Attrs) {
             if (isTargetPlayer) {
-                this._processPlayerAttrs(targetUuid.toNumber(), attrCollection.Attrs);
+                this.#processPlayerAttrs(targetUuid.toNumber(), attrCollection.Attrs);
             } else if (isTargetMonster) {
-                this._processEnemyAttrs(targetUuid.toNumber(), attrCollection.Attrs);
+                this.#processEnemyAttrs(targetUuid.toNumber(), attrCollection.Attrs);
             }
         }
 
@@ -421,22 +426,22 @@ class PacketProcessor {
         }
     }
 
-    _processSyncServerTime(payloadBuffer) {
-        // SyncServerTime - no necesitamos procesar nada especial aquí
-        // Se mantenía para compatibilidad con el switch case
+    #processSyncServerTime(payloadBuffer: Buffer) {
+        // SyncServerTime - we don't need to process anything special here
+        // Kept for compatibility with the switch case in processPacket
     }
 
-    _processSyncNearDeltaInfo(payloadBuffer) {
+    #processSyncNearDeltaInfo(payloadBuffer: Buffer) {
         const syncNearDeltaInfo = pb.SyncNearDeltaInfo.decode(payloadBuffer);
         // this.logger.debug(JSON.stringify(syncNearDeltaInfo, null, 2));
 
         if (!syncNearDeltaInfo.DeltaInfos) return;
         for (const aoiSyncDelta of syncNearDeltaInfo.DeltaInfos) {
-            this._processAoiSyncDelta(aoiSyncDelta);
+            this.#processAoiSyncDelta(aoiSyncDelta);
         }
     }
 
-    _processSyncToMeDeltaInfo(payloadBuffer) {
+    #processSyncToMeDeltaInfo(payloadBuffer: Buffer) {
         const syncToMeDeltaInfo = pb.SyncToMeDeltaInfo.decode(payloadBuffer);
         // this.logger.debug(JSON.stringify(syncToMeDeltaInfo, null, 2));
 
@@ -451,10 +456,10 @@ class PacketProcessor {
         const aoiSyncDelta = aoiSyncToMeDelta.BaseDelta;
         if (!aoiSyncDelta) return;
 
-        this._processAoiSyncDelta(aoiSyncDelta);
+        this.#processAoiSyncDelta(aoiSyncDelta);
     }
 
-    _processSyncContainerData(payloadBuffer) {
+    #processSyncContainerData(payloadBuffer: Buffer) {
         // for some reason protobufjs doesn't work here, we use google-protobuf instead
         try {
             const syncContainerData = pb.SyncContainerData.decode(payloadBuffer);
@@ -497,7 +502,7 @@ class PacketProcessor {
         }
     }
 
-    _processSyncContainerDirtyData(payloadBuffer) {
+    #processSyncContainerDirtyData(payloadBuffer: Buffer) {
         if (currentUserUuid.isZero()) return;
 
         const syncContainerDirtyData = pb.SyncContainerDirtyData.decode(payloadBuffer);
@@ -575,7 +580,7 @@ class PacketProcessor {
         // this.logger.debug(syncContainerDirtyData.VData.Buffer.toString('hex'));
     }
 
-    _processPlayerAttrs(playerUid, attrs) {
+    #processPlayerAttrs(playerUid: number, attrs: any[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
             const reader = pbjs.Reader.create(attr.RawData);
@@ -639,7 +644,7 @@ class PacketProcessor {
         }
     }
 
-    _processEnemyAttrs(enemyUid, attrs) {
+    #processEnemyAttrs(enemyUid: string, attrs: any[]) {
         for (const attr of attrs) {
             if (!attr.Id || !attr.RawData) continue;
             const reader = pbjs.Reader.create(attr.RawData);
@@ -673,12 +678,12 @@ class PacketProcessor {
         }
     }
 
-    _processSyncNearEntities(payloadBuffer) {
+    #processSyncNearEntities(payloadBuffer: Buffer) {
         const syncNearEntities = pb.SyncNearEntities.decode(payloadBuffer);
         // this.logger.debug(JSON.stringify(syncNearEntities, null, 2));
 
         if (!syncNearEntities.Appear) return;
-        
+
         // Actualizar el UID del jugador local en el data manager
         const localPlayerUid = currentUserUuid.shiftRight(16).toNumber();
         if (this.userDataManager && localPlayerUid > 0) {
@@ -694,10 +699,10 @@ class PacketProcessor {
             if (attrCollection && attrCollection.Attrs) {
                 switch (entity.EntType) {
                     case pb.EEntityType.EntMonster:
-                        this._processEnemyAttrs(entityUid, attrCollection.Attrs);
+                        this.#processEnemyAttrs(entityUid, attrCollection.Attrs);
                         break;
                     case pb.EEntityType.EntChar:
-                        this._processPlayerAttrs(entityUid, attrCollection.Attrs);
+                        this.#processPlayerAttrs(entityUid, attrCollection.Attrs);
                         break;
                     default:
                         // this.logger.debug('Get AttrCollection for Unknown EntType' + entity.EntType);
@@ -707,7 +712,7 @@ class PacketProcessor {
         }
     }
 
-    _processNotifyMsg(reader, isZstdCompressed) {
+    #processNotifyMsg(reader: BinaryReader, isZstdCompressed: number) {
         const serviceUuid = reader.readUInt64();
         const stubId = reader.readUInt32();
         const methodId = reader.readUInt32();
@@ -719,27 +724,27 @@ class PacketProcessor {
 
         let msgPayload = reader.readRemaining();
         if (isZstdCompressed) {
-            msgPayload = this._decompressPayload(msgPayload);
+            msgPayload = this.#decompressPayload(msgPayload);
         }
 
         switch (methodId) {
             case NotifyMethod.SyncNearEntities:
-                this._processSyncNearEntities(msgPayload);
+                this.#processSyncNearEntities(msgPayload);
                 break;
             case NotifyMethod.SyncContainerData:
-                this._processSyncContainerData(msgPayload);
+                this.#processSyncContainerData(msgPayload);
                 break;
             case NotifyMethod.SyncContainerDirtyData:
-                this._processSyncContainerDirtyData(msgPayload);
+                this.#processSyncContainerDirtyData(msgPayload);
                 break;
             case NotifyMethod.SyncServerTime:
-                this._processSyncServerTime(msgPayload);
+                this.#processSyncServerTime(msgPayload);
                 break;
             case NotifyMethod.SyncToMeDeltaInfo:
-                this._processSyncToMeDeltaInfo(msgPayload);
+                this.#processSyncToMeDeltaInfo(msgPayload);
                 break;
             case NotifyMethod.SyncNearDeltaInfo:
-                this._processSyncNearDeltaInfo(msgPayload);
+                this.#processSyncNearDeltaInfo(msgPayload);
                 break;
             default:
                 // Ignorar method IDs desconocidos silenciosamente
@@ -749,11 +754,11 @@ class PacketProcessor {
         return;
     }
 
-    _processReturnMsg(reader, isZstdCompressed) {
+    #processReturnMsg(reader: BinaryReader, isZstdCompressed: number) {
         this.logger.debug(`Unimplemented processing return`);
     }
 
-    processPacket(packets) {
+    processPacket(packets: Buffer) {
         try {
             const packetsReader = new BinaryReader(packets);
 
@@ -772,10 +777,10 @@ class PacketProcessor {
 
                 switch (msgTypeId) {
                     case MessageType.Notify:
-                        this._processNotifyMsg(packetReader, isZstdCompressed);
+                        this.#processNotifyMsg(packetReader, isZstdCompressed);
                         break;
                     case MessageType.Return:
-                        this._processReturnMsg(packetReader, isZstdCompressed);
+                        this.#processReturnMsg(packetReader, isZstdCompressed);
                         break;
                     case MessageType.FrameDown:
                         const serverSequenceId = packetReader.readUInt32();
@@ -784,7 +789,7 @@ class PacketProcessor {
                         let nestedPacket = packetReader.readRemaining();
 
                         if (isZstdCompressed) {
-                            nestedPacket = this._decompressPayload(nestedPacket);
+                            nestedPacket = this.#decompressPayload(nestedPacket);
                         }
 
                         // this.logger.debug("Processing FrameDown packet.");

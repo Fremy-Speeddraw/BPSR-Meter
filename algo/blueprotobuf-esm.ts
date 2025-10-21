@@ -12,7 +12,7 @@ const module = { exports: {} };
 
 // Execute the UMD code with our module context
 const factory = new Function('module', 'require', blueprotobufCode + '\nreturn module.exports;');
-pb = factory(module, (name) => {
+pb = factory(module, (name: string) => {
     if (name === 'protobufjs/minimal') return $protobuf;
     throw new Error(`Unknown module: ${name}`);
 });
