@@ -1,4 +1,4 @@
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === "development";
 
 export const devLog = (...args: any[]): void => {
     if (isDevelopment) {

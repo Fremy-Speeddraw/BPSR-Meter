@@ -1,41 +1,44 @@
 {
     "name": "bpsr-meter",
-    "version": "0.0.8",
+    "version": "0.1.0",
     "description": "BPSR Meter",
     "author": "Fremy-Speeddraw",
     "type": "module",
-    "main": "dist/electron-main.js",
+    "main": "out/main/index.js",
     "bin": {
-        "bpsr-meter": "dist/server.js"
+        "bpsr-meter": "dist/server/server.js"
     },
     "engines": {
         "node": "^22.15.0"
     },
     "scripts": {
-        "build": "tsc && pkg .",
-        "build:ts": "tsc && node build-copy-assets.js",
-        "build:renderer": "vite build",
-        "build:all": "npm run build:ts && npm run build:renderer && npm run copy-assets",
-        "copy-assets": "node build-copy-assets.js",
-        "watch": "tsc --watch",
-        "watch:renderer": "vite build --watch",
-        "start": "npm run build:ts && electron .",
-        "start:dev": "electron .",
-        "dev": "electron-reload .",
-        "lint:pritter": "prettier --write .",
+        "dev": "electron-vite dev",
+        "build": "electron-vite build",
+        "preview": "electron-vite preview",
+        "build:server": "tsc src/main/server.ts --outDir dist/server --module ES2022 --target ES2020 --moduleResolution bundler --esModuleInterop --resolveJsonModule --skipLibCheck",
+        "build:all": "npm run build && npm run build:server",
+        "start": "electron-vite preview",
+        "lint:prettier": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
         "test": "echo \"Error: no test specified\" && exit 1",
         "dist": "npm run build:all && electron-builder --win --x64"
     },
     "keywords": [],
     "license": "AGPL-3.0",
     "dependencies": {
+        "@electron-toolkit/preload": "^3.0.2",
+        "@electron-toolkit/utils": "^4.0.0",
+        "@tailwindcss/vite": "^4.1.15",
         "cap": "^0.2.1",
         "cors": "^2.8.5",
         "express": "^5.1.0",
         "google-protobuf": "^4.0.0",
         "long": "^5.3.2",
         "protobufjs": "^7.5.4",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "rollup-plugin-copy": "^3.5.0",
         "socket.io": "^4.8.1",
+        "tailwindcss": "^4.1.15",
         "winston": "^3.17.0"
     },
     "devDependencies": {
@@ -44,6 +47,9 @@
         "@types/google-protobuf": "^3.15.12",
         "@types/long": "^5.0.0",
         "@types/node": "^22.18.11",
+        "@types/react": "^19.2.2",
+        "@types/react-dom": "^19.2.2",
+        "@vitejs/plugin-react": "^5.0.4",
         "@yao-pkg/pkg": "^6.6.0",
         "chokidar": "^4.0.1",
         "concurrently": "^9.1.2",
@@ -51,10 +57,11 @@
         "electron-builder": "^26.0.12",
         "electron-reload": "^2.0.0-alpha.1",
         "electron-reloader": "^1.2.3",
+        "electron-vite": "^4.0.1",
         "prettier": "^3.6.2",
         "protobufjs-cli": "^1.1.3",
         "typescript": "^5.9.3",
-        "vite": "^6.4.0"
+        "vite": "^7.1.11"
     },
     "pkg": {
         "scripts": "server.js",
@@ -74,10 +81,10 @@
         "appId": "com.bpsr.meter",
         "productName": "BPSR Meter",
         "files": [
-            "dist/**/*",
-            "src/**/*",
+            "out/**/*",
             "algo/**/*",
             "tables/**/*",
+            "translations/**/*",
             "settings.json",
             "users.json",
             "icon.ico",

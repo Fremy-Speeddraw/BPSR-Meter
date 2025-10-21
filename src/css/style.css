@@ -1,7 +1,9 @@
-﻿:root {
-    --bg-dark: rgba(15, 20, 30, 0.42);
-    --bg-darker: rgba(10, 15, 22, 0.45);
-    --bg-light: rgba(25, 32, 45, 0.38);
+﻿@import "tailwindcss";
+
+:root {
+    --bg-dark: rgba(15, 20, 30, 0.7);
+    --bg-darker: rgba(10, 15, 22, 0.8);
+    --bg-light: rgba(25, 32, 45, 0.6);
     --accent-primary: #4a9eff;
     --text-primary: #ffffff;
     --text-secondary: #b4bcc9;
@@ -17,12 +19,6 @@
     --radius-sm: 3px;
     --transition: 0.2s ease;
     --scale: 1;
-}
-
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
 }
 
 body {
@@ -55,11 +51,9 @@ body {
     position: relative;
 }
 
-
 .controls {
     display: flex;
     align-items: center;
-    gap: var(--gap-sm);
     padding: var(--gap-xs);
     background: var(--bg-darker);
     border-radius: var(--radius);
@@ -198,7 +192,6 @@ body {
     color: var(--text-primary);
 }
 
-
 #loading-indicator {
     text-align: center;
     padding: var(--gap-sm);
@@ -233,7 +226,7 @@ body {
 
 .player-bar:hover {
     border-color: var(--border-hover);
-    background: rgba(25, 32, 45, 0.50);
+    background: rgba(25, 32, 45, 0.5);
     transform: translateX(2px);
 }
 
@@ -306,7 +299,9 @@ body {
     background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
     border-color: #ffa500;
     color: #1a1a1a;
-    box-shadow: 0 0 12px rgba(255, 215, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 12px rgba(255, 215, 0, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Top 2 - Plata */
@@ -314,7 +309,9 @@ body {
     background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
     border-color: #a8a8a8;
     color: #1a1a1a;
-    box-shadow: 0 0 10px rgba(192, 192, 192, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 10px rgba(192, 192, 192, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Top 3 - Bronce */
@@ -322,7 +319,9 @@ body {
     background: linear-gradient(135deg, #cd7f32 0%, #e89b5e 100%);
     border-color: #b87333;
     color: #1a1a1a;
-    box-shadow: 0 0 10px rgba(205, 127, 50, 0.3), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 10px rgba(205, 127, 50, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Jugador local - Azul (solo cuando NO está en top 3) */
@@ -330,7 +329,9 @@ body {
     background: linear-gradient(135deg, #4a9eff 0%, #6bb3ff 100%);
     border-color: #3b8aef;
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(74, 158, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 12px rgba(74, 158, 255, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Jugador local en Top 1 - Oro con borde azul brillante */
@@ -338,7 +339,10 @@ body {
     background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
     border: 2px solid #4a9eff;
     color: #1a1a1a;
-    box-shadow: 0 0 16px rgba(74, 158, 255, 0.8), 0 0 8px rgba(255, 215, 0, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 16px rgba(74, 158, 255, 0.8),
+        0 0 8px rgba(255, 215, 0, 0.6),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Jugador local en Top 2 - Plata con borde azul brillante */
@@ -346,7 +350,10 @@ body {
     background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
     border: 2px solid #4a9eff;
     color: #1a1a1a;
-    box-shadow: 0 0 16px rgba(74, 158, 255, 0.8), 0 0 8px rgba(192, 192, 192, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 16px rgba(74, 158, 255, 0.8),
+        0 0 8px rgba(192, 192, 192, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Jugador local en Top 3 - Bronce con borde azul brillante */
@@ -354,7 +361,10 @@ body {
     background: linear-gradient(135deg, #cd7f32 0%, #e89b5e 100%);
     border: 2px solid #4a9eff;
     color: #1a1a1a;
-    box-shadow: 0 0 16px rgba(74, 158, 255, 0.8), 0 0 8px rgba(205, 127, 50, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        0 0 16px rgba(74, 158, 255, 0.8),
+        0 0 8px rgba(205, 127, 50, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .class-icon {
@@ -398,7 +408,9 @@ body {
     left: 0;
     top: 0;
     height: 100%;
-    transition: width 0.3s ease, background 0.3s ease;
+    transition:
+        width 0.3s ease,
+        background 0.3s ease;
     border-radius: 2px;
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.2);
 }
@@ -411,7 +423,7 @@ body {
     font-size: 9px;
     font-weight: 700;
     color: var(--text-primary);
-    text-shadow: 
+    text-shadow:
         0 0 4px rgba(0, 0, 0, 1),
         0 1px 3px rgba(0, 0, 0, 1),
         1px 1px 2px rgba(0, 0, 0, 0.8);
@@ -518,7 +530,7 @@ body {
 
 .dps-meter-container {
     max-width: fit-content;
-    max-height: 800px;
+    max-height: calc(500px * var(--scale));
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -526,7 +538,7 @@ body {
 /* Skills View Styles */
 .skills-container {
     max-width: fit-content;
-    max-height: 800px;
+    max-height: calc(500px * var(--scale));
     overflow-y: auto;
     overflow-x: hidden;
     padding: var(--gap-sm);
@@ -715,11 +727,13 @@ body {
     color: var(--text-secondary);
 }
 
-.group-members, .available-players {
+.group-members,
+.available-players {
     margin-bottom: var(--gap-lg);
 }
 
-.group-members h4, .available-players h4 {
+.group-members h4,
+.available-players h4 {
     margin: 0 0 var(--gap-md) 0;
     font-size: 12px;
     font-weight: 600;
@@ -728,7 +742,8 @@ body {
     letter-spacing: 0.5px;
 }
 
-#group-members-list, #available-players-list {
+#group-members-list,
+#available-players-list {
     display: flex;
     flex-direction: column;
     gap: var(--gap-sm);
@@ -736,7 +751,8 @@ body {
     overflow-y: auto;
 }
 
-.group-member-item, .available-player-item {
+.group-member-item,
+.available-player-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -817,10 +833,8 @@ body {
 
 /* History Window Styles */
 .history-window {
-    min-width: 1125px;
-    min-height: 875px;
-    max-width: 1125px;
-    max-height: 875px;
+    width: 100%;
+    height: calc(800px * var(--scale));
     display: flex;
     flex-direction: column;
 }
@@ -1028,14 +1042,14 @@ body {
 
 .player-stats {
     display: flex;
-    gap: 14px
+    gap: 14px;
 }
 
 .player-stat {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: var(--gap-lg)
+    gap: var(--gap-lg);
 }
 
 .player-stat .stat-label {
@@ -1221,4 +1235,3 @@ body {
     background: linear-gradient(90deg, var(--primary), rgba(108, 99, 255, 0.6));
     transition: width 0.3s ease;
 }
-

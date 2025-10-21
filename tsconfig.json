@@ -36,20 +36,24 @@
     "declaration": false
   },
   "include": [
-    "src/**/*.ts",
-    "electron-main.ts",
-    "preload.ts",
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "src/server/**/*.ts",
+    "src/types/**/*.ts",
+    "src/utils/**/*.ts",
     "server.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
+    "out",
     "algo/**/*.js",
     "src/server/dataManager.js",
     "src/server/api.js",
     "src/server/sniffer.js",
-    "electron-main.js",
-    "preload.js",
-    "server.js"
+    "src/renderer/**/*"
+  ],
+  "references": [
+    { "path": "./tsconfig.renderer.json" }
   ]
 }

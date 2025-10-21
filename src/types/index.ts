@@ -42,8 +42,9 @@ export interface EnemyData {
     lastUpdate: number;
 }
 
+export type PlayerRegistry = { [uid: string]: PlayerRegistryEntry };
+
 export interface PlayerRegistryEntry {
-    uid: string;
     name: string;
     profession?: number;
     level?: number;
@@ -51,8 +52,7 @@ export interface PlayerRegistryEntry {
 
 export interface Settings {
     selectedPlayers?: string[];
-    filterMode?: 'all' | 'group';
-    playerRegistry?: { [uid: string]: PlayerRegistryEntry };
+    filterMode?: "all" | "group";
     isPaused?: boolean;
 }
 
@@ -68,8 +68,7 @@ export interface ManualGroup {
 
 export interface GlobalSettings {
     selectedPlayers: string[];
-    filterMode: 'all' | 'group';
-    playerRegistry: { [uid: string]: PlayerRegistryEntry };
+    filterMode: "all" | "group";
     isPaused: boolean;
     enableFightLog?: boolean;
     enableHistorySave?: boolean;
@@ -143,9 +142,11 @@ export interface Logger {
 }
 
 export interface SocketEvents {
-    'settings-updated': (settings: Settings) => void;
-    'data-update': (data: any) => void;
-    'player-registry-update': (registry: { [uid: string]: PlayerRegistryEntry }) => void;
+    "settings-updated": (settings: Settings) => void;
+    "data-update": (data: any) => void;
+    "player-registry-update": (registry: {
+        [uid: string]: PlayerRegistryEntry;
+    }) => void;
 }
 
 // Protobuf related types
@@ -159,11 +160,13 @@ export interface Proto {
 }
 
 export interface SkillConfig {
-    [skillId: string]: string | {
-        name: string;
-        profession?: string;
-        type?: string;
-    };
+    [skillId: string]:
+        | string
+        | {
+              name: string;
+              profession?: string;
+              type?: string;
+          };
 }
 
 export interface MonsterNames {
@@ -172,9 +175,9 @@ export interface MonsterNames {
 
 // Type guards
 export function isValidUid(uid: any): uid is string {
-    return typeof uid === 'string' && uid.length > 0;
+    return typeof uid === "string" && uid.length > 0;
 }
 
 export function isValidDamage(damage: any): damage is number {
-    return typeof damage === 'number' && damage >= 0;
+    return typeof damage === "number" && damage >= 0;
 }

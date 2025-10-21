@@ -1,18 +1,19 @@
-import { promises as fsPromises } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { readFileSync } from 'fs';
-import type { Logger, GlobalSettings, SkillConfig } from '../types/index';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { promises as fsPromises } from "fs";
+import path from "path";
+import { readFileSync } from "fs";
+import type { Logger, GlobalSettings, SkillConfig } from "../types/index";
 
 // Use user data path in production, current directory in development
-const USER_DATA_DIR = process.env.NODE_ENV === 'development' ? process.cwd() : process.env.USER_DATA_PATH;
+const USER_DATA_DIR =
+    process.env.NODE_ENV === "development"
+        ? process.cwd()
+        : process.env.USER_DATA_PATH;
 
 const skillConfig: SkillConfig = JSON.parse(
-    readFileSync(path.join(__dirname, '..', '..', 'tables', 'skill_names.json'), 'utf-8')
+    readFileSync(
+        path.join(__dirname, "..", "..", "tables", "skill_names.json"),
+        "utf-8",
+    ),
 ).skill_names;
 
 export class Lock {
@@ -39,54 +40,54 @@ export class Lock {
 export function getSubProfessionBySkillId(skillId: number): string {
     switch (skillId) {
         case 1241:
-            return '射线';
+            return "射线";
         case 2307:
         case 2361:
         case 55302:
-            return '协奏';
+            return "协奏";
         case 20301:
-            return '愈合';
+            return "愈合";
         case 1518:
         case 1541:
         case 21402:
-            return '惩戒';
+            return "惩戒";
         case 2306:
-            return '狂音';
+            return "狂音";
         case 120901:
         case 120902:
-            return '冰矛';
+            return "冰矛";
         case 1714:
         case 1734:
-            return '居合';
+            return "居合";
         case 44701:
         case 179906:
-            return '月刃';
+            return "月刃";
         case 220112:
         case 2203622:
-            return '鹰弓';
+            return "鹰弓";
         case 2292:
         case 1700820:
         case 1700825:
         case 1700827:
-            return '狼弓';
+            return "狼弓";
         case 1419:
-            return '空枪';
+            return "空枪";
         case 1405:
         case 1418:
-            return '重装';
+            return "重装";
         case 2405:
-            return '防盾';
+            return "防盾";
         case 2406:
-            return '光盾';
+            return "光盾";
         case 199902:
-            return '岩盾';
+            return "岩盾";
         case 1930:
         case 1931:
         case 1934:
         case 1935:
-            return '格挡';
+            return "格挡";
         default:
-            return '';
+            return "";
     }
 }
 
@@ -127,7 +128,7 @@ export class StatisticData {
     timeRange: [number | null, number | null];
     realtimeStats: RealtimeStats;
 
-    constructor(user: UserData, type: string = '', element: string = '') {
+    constructor(user: UserData, type: string = "", element: string = "") {
         this.user = user;
         this.type = type;
         this.element = element;
@@ -154,7 +155,12 @@ export class StatisticData {
         };
     }
 
-    addRecord(value: number, isCrit: boolean, isLucky: boolean, hpLessenValue: number = 0): void {
+    addRecord(
+        value: number,
+        isCrit: boolean,
+        isLucky: boolean,
+        hpLessenValue: number = 0,
+    ): void {
         const now = Date.now();
 
         if (isCrit) {
@@ -200,7 +206,10 @@ export class StatisticData {
     updateRealtimeStats(): void {
         const now = Date.now();
 
-        while (this.realtimeWindow.length > 0 && now - this.realtimeWindow[0].time > 1000) {
+        while (
+            this.realtimeWindow.length > 0 &&
+            now - this.realtimeWindow[0].time > 1000
+        ) {
             this.realtimeWindow.shift();
         }
 
@@ -217,7 +226,9 @@ export class StatisticData {
         if (!this.timeRange[0] || !this.timeRange[1]) {
             return 0;
         }
-        const totalPerSecond = (this.stats.total / (this.timeRange[1] - this.timeRange[0])) * 1000 || 0;
+        const totalPerSecond =
+            (this.stats.total / (this.timeRange[1] - this.timeRange[0])) *
+                1000 || 0;
         if (!Number.isFinite(totalPerSecond)) return 0;
         return totalPerSecond;
     }
@@ -297,15 +308,15 @@ export class UserData {
 
     constructor(uid: number) {
         this.uid = uid;
-        this.name = '';
-        this.damageStats = new StatisticData(this, '伤害');
-        this.healingStats = new StatisticData(this, '治疗');
+        this.name = "";
+        this.damageStats = new StatisticData(this, "伤害");
+        this.healingStats = new StatisticData(this, "治疗");
         this.takenDamage = 0;
         this.deadCount = 0;
-        this.profession = '未知';
+        this.profession = "未知";
         this.skillUsage = new Map();
         this.fightPoint = 0;
-        this.subProfession = '';
+        this.subProfession = "";
         this.attr = {};
     }
 
@@ -316,13 +327,18 @@ export class UserData {
         isCrit: boolean,
         isLucky: boolean,
         isCauseLucky: boolean,
-        hpLessenValue: number = 0
+        hpLessenValue: number = 0,
     ): void {
         this.damageStats.addRecord(damage, isCrit, isLucky, hpLessenValue);
         if (!this.skillUsage.has(skillId)) {
-            this.skillUsage.set(skillId, new StatisticData(this, '伤害', element));
+            this.skillUsage.set(
+                skillId,
+                new StatisticData(this, "伤害", element),
+            );
         }
-        this.skillUsage.get(skillId)!.addRecord(damage, isCrit, isCauseLucky, hpLessenValue);
+        this.skillUsage
+            .get(skillId)!
+            .addRecord(damage, isCrit, isCauseLucky, hpLessenValue);
         this.skillUsage.get(skillId)!.realtimeWindow.length = 0;
 
         const subProfession = getSubProfessionBySkillId(skillId);
@@ -337,12 +353,15 @@ export class UserData {
         healing: number,
         isCrit: boolean,
         isLucky: boolean,
-        isCauseLucky: boolean
+        isCauseLucky: boolean,
     ): void {
         this.healingStats.addRecord(healing, isCrit, isLucky);
         skillId = skillId + 1000000000;
         if (!this.skillUsage.has(skillId)) {
-            this.skillUsage.set(skillId, new StatisticData(this, '治疗', element));
+            this.skillUsage.set(
+                skillId,
+                new StatisticData(this, "治疗", element),
+            );
         }
         this.skillUsage.get(skillId)!.addRecord(healing, isCrit, isCauseLucky);
         this.skillUsage.get(skillId)!.realtimeWindow.length = 0;
@@ -373,10 +392,15 @@ export class UserData {
 
     getTotalCount(): Count {
         return {
-            normal: this.damageStats.count.normal + this.healingStats.count.normal,
-            critical: this.damageStats.count.critical + this.healingStats.count.critical,
+            normal:
+                this.damageStats.count.normal + this.healingStats.count.normal,
+            critical:
+                this.damageStats.count.critical +
+                this.healingStats.count.critical,
             lucky: this.damageStats.count.lucky + this.healingStats.count.lucky,
-            crit_lucky: this.damageStats.count.crit_lucky + this.healingStats.count.crit_lucky,
+            crit_lucky:
+                this.damageStats.count.crit_lucky +
+                this.healingStats.count.crit_lucky,
             total: this.damageStats.count.total + this.healingStats.count.total,
         };
     }
@@ -393,7 +417,9 @@ export class UserData {
             total_hps: this.getTotalHps(),
             total_healing: { ...this.healingStats.stats },
             taken_damage: this.takenDamage,
-            profession: this.profession + (this.subProfession ? `-${this.subProfession}` : ''),
+            profession:
+                this.profession +
+                (this.subProfession ? `-${this.subProfession}` : ""),
             name: this.name,
             fightPoint: this.fightPoint,
             hp: this.attr.hp,
@@ -407,10 +433,15 @@ export class UserData {
         for (const [skillId, stat] of this.skillUsage) {
             const critCount = stat.count.critical;
             const luckyCount = stat.count.lucky;
-            const critRate = stat.count.total > 0 ? critCount / stat.count.total : 0;
-            const luckyRate = stat.count.total > 0 ? luckyCount / stat.count.total : 0;
+            const critRate =
+                stat.count.total > 0 ? critCount / stat.count.total : 0;
+            const luckyRate =
+                stat.count.total > 0 ? luckyCount / stat.count.total : 0;
             const skillConfigEntry = skillConfig[skillId % 1000000000];
-            const name = typeof skillConfigEntry === 'string' ? skillConfigEntry : (skillConfigEntry?.name ?? skillId % 1000000000);
+            const name =
+                typeof skillConfigEntry === "string"
+                    ? skillConfigEntry
+                    : (skillConfigEntry?.name ?? skillId % 1000000000);
             const elementype = stat.element;
 
             skills[skillId] = {
@@ -431,7 +462,7 @@ export class UserData {
     }
 
     setProfession(profession: string): void {
-        if (profession !== this.profession) this.setSubProfession('');
+        if (profession !== this.profession) this.setSubProfession("");
         this.profession = profession;
     }
 
@@ -526,15 +557,21 @@ export class UserDataManager {
                 if (cachedData.name) {
                     user.setName(cachedData.name);
                 }
-                if (cachedData.fightPoint !== undefined && cachedData.fightPoint !== null) {
+                if (
+                    cachedData.fightPoint !== undefined &&
+                    cachedData.fightPoint !== null
+                ) {
                     user.setFightPoint(cachedData.fightPoint);
                 }
-                if (cachedData.maxHp !== undefined && cachedData.maxHp !== null) {
-                    user.setAttrKV('max_hp', cachedData.maxHp);
+                if (
+                    cachedData.maxHp !== undefined &&
+                    cachedData.maxHp !== null
+                ) {
+                    user.setAttrKV("max_hp", cachedData.maxHp);
                 }
             }
             if (this.hpCache.has(uid)) {
-                user.setAttrKV('hp', this.hpCache.get(uid));
+                user.setAttrKV("hp", this.hpCache.get(uid));
             }
 
             this.users.set(uid, user);
@@ -551,11 +588,19 @@ export class UserDataManager {
         isLucky: boolean,
         isCauseLucky: boolean,
         hpLessenValue: number = 0,
-        targetUid?: number
+        targetUid?: number,
     ): void {
         this.checkTimeoutClear();
         const user = this.getUser(uid);
-        user.addDamage(skillId, element, damage, isCrit, isLucky, isCauseLucky, hpLessenValue);
+        user.addDamage(
+            skillId,
+            element,
+            damage,
+            isCrit,
+            isLucky,
+            isCauseLucky,
+            hpLessenValue,
+        );
     }
 
     addHealing(
@@ -566,12 +611,19 @@ export class UserDataManager {
         isCrit: boolean,
         isLucky: boolean,
         isCauseLucky: boolean,
-        targetUid?: number
+        targetUid?: number,
     ): void {
         this.checkTimeoutClear();
         if (uid !== 0) {
             const user = this.getUser(uid);
-            user.addHealing(skillId, element, healing, isCrit, isLucky, isCauseLucky);
+            user.addHealing(
+                skillId,
+                element,
+                healing,
+                isCrit,
+                isLucky,
+                isCauseLucky,
+            );
         }
     }
 
@@ -584,8 +636,8 @@ export class UserDataManager {
     async addLog(log: string): Promise<void> {
         if (!this.globalSettings.enableFightLog) return;
 
-        const logDir = path.join(USER_DATA_DIR, 'logs', String(this.startTime));
-        const logFile = path.join(logDir, 'fight.log');
+        const logDir = path.join(USER_DATA_DIR, "logs", String(this.startTime));
+        const logFile = path.join(logDir, "fight.log");
         const timestamp = new Date().toISOString();
         const logEntry = `[${timestamp}] ${log}\n`;
 
@@ -599,9 +651,9 @@ export class UserDataManager {
                 }
                 this.logDirExist.add(logDir);
             }
-            await fsPromises.appendFile(logFile, logEntry, 'utf8');
+            await fsPromises.appendFile(logFile, logEntry, "utf8");
         } catch (error) {
-            this.logger.error('Failed to save log:', error);
+            this.logger.error("Failed to save log:", error);
         }
         this.logLock.release();
     }
@@ -648,7 +700,9 @@ export class UserDataManager {
         return {
             uid: user.uid,
             name: user.name,
-            profession: user.profession + (user.subProfession ? `-${user.subProfession}` : ''),
+            profession:
+                user.profession +
+                (user.subProfession ? `-${user.subProfession}` : ""),
             skills: user.getSkillSummary(),
             attr: user.attr,
         };
@@ -703,7 +757,7 @@ export class UserDataManager {
         if (this.users.size > 0 && this.globalSettings.enableHistorySave) {
             await this.saveAllUserData();
         }
-        
+
         this.users = new Map();
         this.startTime = Date.now();
     }
@@ -713,10 +767,10 @@ export class UserDataManager {
         if (this.users.size > 0 && this.globalSettings.enableHistorySave) {
             await this.saveAllUserData();
         }
-        
+
         for (const [uid, user] of this.users.entries()) {
-            user.damageStats = new StatisticData(user, '伤害');
-            user.healingStats = new StatisticData(user, '治疗');
+            user.damageStats = new StatisticData(user, "伤害");
+            user.healingStats = new StatisticData(user, "治疗");
             user.takenDamage = 0;
             user.deadCount = 0;
             user.skillUsage = new Map();
@@ -724,28 +778,31 @@ export class UserDataManager {
             user.fightPoint = 0; // Reset fight point
         }
         this.startTime = Date.now();
-        this.logger.info('Statistics reset while keeping player information.');
+        this.logger.info("Statistics reset while keeping player information.");
     }
 
     getUserIds(): number[] {
         return Array.from(this.users.keys());
     }
 
-    async saveAllUserData(usersToSave: Map<number, UserData> | null = null, startTime: number | null = null): Promise<void> {
+    async saveAllUserData(
+        usersToSave: Map<number, UserData> | null = null,
+        startTime: number | null = null,
+    ): Promise<void> {
         if (!this.globalSettings.enableHistorySave) return;
 
         try {
             const endTime = Date.now();
             const users = usersToSave || this.users;
             const timestamp = startTime || this.startTime;
-            const logDir = path.join(USER_DATA_DIR, 'logs', String(timestamp));
-            const usersDir = path.join(logDir, 'users');
+            const logDir = path.join(USER_DATA_DIR, "logs", String(timestamp));
+            const usersDir = path.join(logDir, "users");
             const summary = {
                 startTime: timestamp,
                 endTime,
                 duration: endTime - timestamp,
                 userCount: users.size,
-                version: '3.1',
+                version: "3.1",
             };
 
             const allUsersData: Record<number, UserSummary> = {};
@@ -756,7 +813,9 @@ export class UserDataManager {
                 const userData = {
                     uid: user.uid,
                     name: user.name,
-                    profession: user.profession + (user.subProfession ? `-${user.subProfession}` : ''),
+                    profession:
+                        user.profession +
+                        (user.subProfession ? `-${user.subProfession}` : ""),
                     skills: user.getSkillSummary(),
                     attr: user.attr,
                 };
@@ -769,29 +828,44 @@ export class UserDataManager {
                 await fsPromises.mkdir(usersDir, { recursive: true });
             }
 
-            const allUserDataPath = path.join(logDir, 'allUserData.json');
-            await fsPromises.writeFile(allUserDataPath, JSON.stringify(allUsersData, null, 2), 'utf8');
+            const allUserDataPath = path.join(logDir, "allUserData.json");
+            await fsPromises.writeFile(
+                allUserDataPath,
+                JSON.stringify(allUsersData, null, 2),
+                "utf8",
+            );
 
             for (const [uid, userData] of userDatas.entries()) {
                 const userDataPath = path.join(usersDir, `${uid}.json`);
-                await fsPromises.writeFile(userDataPath, JSON.stringify(userData, null, 2), 'utf8');
+                await fsPromises.writeFile(
+                    userDataPath,
+                    JSON.stringify(userData, null, 2),
+                    "utf8",
+                );
             }
 
-            await fsPromises.writeFile(path.join(logDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
+            await fsPromises.writeFile(
+                path.join(logDir, "summary.json"),
+                JSON.stringify(summary, null, 2),
+                "utf8",
+            );
 
-            this.logger.debug(`Saved data for ${summary.userCount} users to ${logDir}`);
+            this.logger.debug(
+                `Saved data for ${summary.userCount} users to ${logDir}`,
+            );
         } catch (error) {
-            this.logger.error('Failed to save all user data:', error);
+            this.logger.error("Failed to save all user data:", error);
             throw error;
         }
     }
 
     checkTimeoutClear(): void {
-        if (!this.globalSettings.autoClearOnTimeout || this.users.size === 0) return;
+        if (!this.globalSettings.autoClearOnTimeout || this.users.size === 0)
+            return;
         const currentTime = Date.now();
         if (this.lastLogTime && currentTime - this.lastLogTime > 20000) {
             this.clearAll();
-            this.logger.info('Timeout reached, statistics cleared!');
+            this.logger.info("Timeout reached, statistics cleared!");
         }
     }
 }

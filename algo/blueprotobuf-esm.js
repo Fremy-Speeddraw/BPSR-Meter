@@ -1,15 +1,10 @@
 // ES Module wrapper for blueprotobuf.js
 import * as $protobuf from 'protobufjs/minimal.js';
 import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-// Get __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import path from 'path';
 
 // Read and evaluate the UMD module manually
-const blueprotobufCode = readFileSync(join(__dirname, 'blueprotobuf.js'), 'utf-8');
+const blueprotobufCode = readFileSync(path.join(__dirname, 'algo/blueprotobuf.js'), 'utf-8');
 
 // Create a context where the UMD module can execute
 let pb = null;

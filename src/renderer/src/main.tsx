@@ -1,0 +1,32 @@
+import React from "react";
+import ReactDOM from "react-dom/client";
+import MainApp from "./main/App";
+import GroupApp from "./group/App";
+import HistoryApp from "./history/App";
+import "/css/style.css";
+
+console.log("React entry point loaded");
+
+// Determine which app to render based on current page
+const renderApp = () => {
+    const path = window.location.pathname;
+
+    console.log("Current path:", path);
+
+    if (path.includes("group.html")) {
+        return <GroupApp />;
+    } else if (path.includes("history.html")) {
+        return <HistoryApp />;
+    } else {
+        return <MainApp />;
+    }
+};
+
+const root = document.getElementById("root");
+if (root) {
+    ReactDOM.createRoot(root).render(
+        <React.StrictMode>{renderApp()}</React.StrictMode>,
+    );
+} else {
+    console.error("Root element not found!");
+}

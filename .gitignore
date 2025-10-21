@@ -8,6 +8,12 @@ dist/logs/
 
 # Build output
 /dist
+/out
+player_registry.json
+
+# Vite cache
+.vite/
+.vite-inspect/
 
 # TypeScript
 *.tsbuildinfo
@@ -18,7 +24,6 @@ dist/logs/
 .npmrc
 /Prerequisites/npcap-1.83.exe
 pnpm-lock.yaml
-server - copia - copia.js
- 
+
 # Electron packaged output
 dist_electron/

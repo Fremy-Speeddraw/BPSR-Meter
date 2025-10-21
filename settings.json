@@ -1,22 +1,23 @@
 {
-  "selectedPlayers": [],
-  "filterMode": "all",
-  "playerRegistry": {},
-  "isPaused": false,
-  "lastPausedAt": null,
-  "lastResumedAt": null,
-  "autoClearOnServerChange": true,
-  "autoClearOnTimeout": true,
-  "onlyRecordEliteDummy": false,
-  "enableFightLog": false,
-  "enableHistorySave": true,
-  "language": "en",
-  "availableLanguages": [
-    "en",
-    "zh"
-  ],
-  "manualGroup": {
-    "enabled": true,
-    "members": []
-  }
+    "selectedPlayers": [],
+    "filterMode": "all",
+    "isPaused": false,
+    "autoClearOnServerChange": true,
+    "autoClearOnTimeout": true,
+    "onlyRecordEliteDummy": false,
+    "enableFightLog": false,
+    "enableHistorySave": true,
+    "lastPausedAt": null,
+    "lastResumedAt": null,
+    "playerRegistry": {},
+    "language": "en",
+    "availableLanguages": [
+        "en",
+        "zh"
+    ],
+    "manualGroup": {
+        "enabled": false,
+        "members": []
+    },
+    "windowSizes": {}
 }
