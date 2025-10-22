@@ -1,6 +1,3 @@
-/**
- * Type definitions for the BPSR Meter renderer process
- */
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -59,12 +56,36 @@ export interface ProfessionInfo {
 export type ProfessionMap = Record<string, ProfessionInfo>;
 
 // Settings types
+export interface ManualGroupMember {
+    uid: string;
+    name: string;
+}
+
+export interface ManualGroup {
+    enabled: boolean;
+    members: ManualGroupMember[];
+}
+
 export interface Settings {
-    language?: string;
-    autoClearOnServerChange?: boolean;
+    selectedPlayers: string[];
+    filterMode: "all" | "group";
+    isPaused: boolean;
+    enableFightLog?: boolean;
+    enableHistorySave?: boolean;
     autoClearOnTimeout?: boolean;
+    autoClearOnServerChange?: boolean;
     onlyRecordEliteDummy?: boolean;
-    [key: string]: any;
+    language?: string;
+    availableLanguages?: string[];
+    manualGroup?: ManualGroup;
+    windowSizes?: {
+        main?: { width: number; height: number; scale?: number };
+        group?: { width: number; height: number };
+        history?: { width: number; height: number };
+    };
+    // Timestamps to track when pause/resume happened (milliseconds since epoch)
+    lastPausedAt?: number | null;
+    lastResumedAt?: number | null;
 }
 
 // Manual group types

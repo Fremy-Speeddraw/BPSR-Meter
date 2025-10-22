@@ -1,6 +1,6 @@
 # BPSR Meter
 
-BPSR Meter is yet another fork of [NeRooNx's BPSR Meter](https://github.com/NeRooNx/BPSR-Meter) which is a fork of [MrSnakke](https://github.com/mrsnakke/BPSR-Meter) BPSR-Meter which is a customized version of [Dimole's Star Resonance counter](https://github.com/dmlgzs/StarResonanceDamageCounter). I've converted it to using electron vite + tailwind + reack 19 because that's what easier to work with and doesnt hod performance with dom updates, and it also includes typescript support.
+BPSR Meter is yet another fork of [NeRooNx's BPSR Meter](https://github.com/NeRooNx/BPSR-Meter) which is a fork of [MrSnakke](https://github.com/mrsnakke/BPSR-Meter) BPSR-Meter which is a customized version of [Dimole's Star Resonance counter](https://github.com/dmlgzs/StarResonanceDamageCounter). I've converted it to using electron vite + tailwind + reack 19 because that's what easier to work with and doesnt hog performance with dom updates, and it also includes typescript support.
 
 ## Quick start (Users)
 

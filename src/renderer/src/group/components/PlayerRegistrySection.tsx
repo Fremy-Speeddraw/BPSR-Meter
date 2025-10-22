@@ -5,12 +5,14 @@ export interface PlayerRegistrySectionProps {
     playerRegistry: PlayerRegistry;
     onSavePlayer: (uid: string, name: string) => Promise<void>;
     onDeletePlayer: (uid: string) => Promise<void>;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function PlayerRegistrySection({
     playerRegistry,
     onSavePlayer,
     onDeletePlayer,
+    t,
 }: PlayerRegistrySectionProps): React.JSX.Element {
     const [uid, setUid] = useState<string>("");
     const [name, setName] = useState<string>("");
@@ -20,7 +22,7 @@ export function PlayerRegistrySection({
         const trimmedName = name.trim();
 
         if (!trimmedUid || !trimmedName) {
-            alert("Please enter both UID and Name");
+            alert(t("ui.messages.enterUidName","Please enter both UID and Name"));
             return;
         }
 
@@ -41,14 +43,14 @@ export function PlayerRegistrySection({
 
     return (
         <div className="group-section">
-            <h4>Player Registry</h4>
+            <h4>{t("ui.titles.playerRegistry","Player Registry")}</h4>
 
             {/* Registry Controls - Add New Player */}
             <div className="registry-controls">
                 <input
                     id="registry-uid-input"
                     type="text"
-                    placeholder="Player UID"
+                    placeholder={t("ui.placeholders.playerUid","Player UID")}
                     value={uid}
                     onChange={(e) => setUid(e.target.value)}
                     onKeyPress={handleKeyPress}
@@ -65,7 +67,7 @@ export function PlayerRegistrySection({
                 <input
                     id="registry-name-input"
                     type="text"
-                    placeholder="Player Name"
+                    placeholder={t("ui.placeholders.playerName","Player Name")}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     onKeyPress={handleKeyPress}
@@ -94,18 +96,14 @@ export function PlayerRegistrySection({
                         transition: "all var(--transition)",
                     }}
                 >
-                    Save
+                    {t("ui.buttons.save","Save")}
                 </button>
             </div>
 
             {/* Registry List */}
-            <div
-                id="registry-list"
-                className="group-members-list"
-                style={{ marginTop: "var(--gap-md)" }}
-            >
+            <div id="registry-list" className="group-members-list" style={{ marginTop: "var(--gap-md)" }}>
                 {registryEntries.length === 0 ? (
-                    <div className="empty-state">No saved players</div>
+                    <div className="empty-state">{t("ui.messages.noSavedPlayers","No saved players")}</div>
                 ) : (
                     registryEntries.map(([uuid, data]) => (
                         <div key={uuid} className="group-member-item">
@@ -118,9 +116,9 @@ export function PlayerRegistrySection({
                             <button
                                 className="btn-remove"
                                 onClick={() => onDeletePlayer(uuid)}
-                                title="Delete from registry"
+                                title={t("ui.buttons.deleteFromRegistry","Delete from registry")}
                             >
-                                Delete
+                                {t("ui.buttons.delete","Delete")}
                             </button>
                         </div>
                     ))

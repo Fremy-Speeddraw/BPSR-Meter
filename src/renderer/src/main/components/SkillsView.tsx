@@ -1,4 +1,4 @@
-import React, { useState, memo } from "react";
+import React, { useState, memo, useMemo } from "react";
 import { SkillCard } from "./SkillCard";
 import { getProfessionInfo } from "../../shared/utils/professions";
 import type { SkillsDataByUser } from "../hooks/useDataFetching";
@@ -12,6 +12,7 @@ export interface SkillsViewProps {
         skillId: number | string,
         fallback?: string | null,
     ) => string;
+    scope?: "solo" | "nearby";
     t: (key: string, fallback?: string | null) => string;
 }
 
@@ -146,50 +147,97 @@ function SkillsViewComponent({
     getPlayerName,
     translateProfession,
     translateSkill,
+    scope = "nearby",
     t,
 }: SkillsViewProps): React.JSX.Element {
     if (!skillsData || Object.keys(skillsData).length === 0) {
         return (
             <div className="skills-message">
-                {t("ui.skills.noData", "No skill data available")}
+                {t("ui.skills.noData")}
             </div>
         );
     }
 
-    // Sort users by total damage
-    const sortedUsers = Object.entries(skillsData).sort((a: any, b: any) => {
-        const aTotal = Object.values(a[1].skills || {}).reduce(
-            (sum: number, skill: any) => sum + (skill.totalDamage || 0),
-            0,
-        ) as number;
-        const bTotal = Object.values(b[1].skills || {}).reduce(
-            (sum: number, skill: any) => sum + (skill.totalDamage || 0),
-            0,
-        ) as number;
-        return bTotal - aTotal;
-    });
+    const [searchTerm, setSearchTerm] = useState<string>("");
+
+    const filteredSkillsData: Record<string, any> = {};
+    if (scope === "solo") {
+        if (Object.keys(skillsData).length === 1) {
+            Object.assign(filteredSkillsData, skillsData);
+        } else {
+            // Fallback: render all if we can't determine solo user here
+            Object.assign(filteredSkillsData, skillsData);
+        }
+    } else {
+        Object.assign(filteredSkillsData, skillsData);
+    }
+
+    const search = searchTerm.trim().toLowerCase();
+
+    const sortedUsers = useMemo(() => {
+        const entries = Object.entries(filteredSkillsData).filter(([uid, userData]: [string, any]) => {
+            if (!search) return true;
+
+            const uidMatch = uid.includes(search);
+            const name = getPlayerName(uid, userData.name || "").toLowerCase();
+            const nameMatch = name.includes(search);
+
+            return uidMatch || nameMatch;
+        });
+
+        entries.sort((a: any, b: any) => {
+            const aTotal = Object.values(a[1].skills || {}).reduce(
+                (sum: number, skill: any) => sum + (skill.totalDamage || 0),
+                0,
+            ) as number;
+            const bTotal = Object.values(b[1].skills || {}).reduce(
+                (sum: number, skill: any) => sum + (skill.totalDamage || 0),
+                0,
+            ) as number;
+            return bTotal - aTotal;
+        });
+
+        return entries;
+    }, [filteredSkillsData, search, getPlayerName]);
 
     return (
         <div
-            className="skills-container"
+            className="skills-container px-4 py-4"
             data-user-count={Object.keys(skillsData).length}
         >
-            {sortedUsers.map(([uid, userData]: [string, any]) => {
-                if (!userData || !userData.skills) return null;
-
-                return (
-                    <PlayerSkillSection
-                        key={uid}
-                        uid={uid}
-                        userData={userData}
-                        startTime={startTime}
-                        getPlayerName={getPlayerName}
-                        translateProfession={translateProfession}
-                        translateSkill={translateSkill}
-                        t={t}
+            {scope === "nearby" && (
+                <div className="skills-search w-full mb-4">
+                    <input
+                        type="search"
+                        className="w-full px-2 py-1 border rounded"
+                        placeholder={t("ui.skills.searchPlaceholder")}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        style={{ border: "1px solid var(--border)", background: "var(--bg-dark)", color: "var(--text-primary)" }}
                     />
-                );
-            })}
+                </div>
+            )}
+
+            {sortedUsers.length === 0 ? (
+                <div style={{ padding: 12 }}>{t("ui.skills.noMatch")}</div>
+            ) : (
+                sortedUsers.map(([uid, userData]: [string, any]) => {
+                    if (!userData || !userData.skills) return null;
+
+                    return (
+                        <PlayerSkillSection
+                            key={uid}
+                            uid={uid}
+                            userData={userData}
+                            startTime={startTime}
+                            getPlayerName={getPlayerName}
+                            translateProfession={translateProfession}
+                            translateSkill={translateSkill}
+                            t={t}
+                        />
+                    );
+                })
+            )}
         </div>
     );
 }

@@ -17,7 +17,6 @@
         "resolveJsonModule": true,
         "moduleResolution": "bundler",
         "allowSyntheticDefaultImports": true,
-        // Disable strict typing
         "strict": true,
         "noImplicitAny": false,
         "strictNullChecks": false,
@@ -26,12 +25,10 @@
         "strictPropertyInitialization": false,
         "noImplicitThis": false,
         "alwaysStrict": false,
-        // Allow implicit any and flexible typing
         "noImplicitReturns": false,
         "noFallthroughCasesInSwitch": false,
         "noUnusedLocals": false,
         "noUnusedParameters": false,
-        // Source maps for debugging
         "sourceMap": true,
         "declaration": false
     },
@@ -41,7 +38,7 @@
         "src/server/**/*.ts",
         "src/types/**/*.ts",
         "src/utils/**/*.ts",
-        "cap.d.ts"
+        "cap.d.ts",
     ],
     "exclude": [
         "node_modules",

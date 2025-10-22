@@ -4,12 +4,14 @@ export interface HistoryControlsProps {
     isHistorySavingEnabled: boolean;
     onRefresh: () => void;
     onToggleHistorySaving: () => void;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function HistoryControls({
     isHistorySavingEnabled,
     onRefresh,
     onToggleHistorySaving,
+    t,
 }: HistoryControlsProps): React.JSX.Element {
     return (
         <div className="history-header">
@@ -17,7 +19,7 @@ export function HistoryControls({
                 id="refresh-history-btn"
                 className="control-button"
                 onClick={onRefresh}
-                title="Refresh history list"
+                title={t("ui.buttons.refreshHistory")}
                 style={{
                     padding: "6px 12px",
                     fontSize: "11px",
@@ -28,7 +30,7 @@ export function HistoryControls({
                     className="fa-solid fa-rotate-right"
                     style={{ marginRight: "6px" }}
                 ></i>
-                Refresh
+                {t("ui.buttons.refreshHistory")}
             </button>
 
             <button
@@ -37,8 +39,8 @@ export function HistoryControls({
                 onClick={onToggleHistorySaving}
                 title={
                     isHistorySavingEnabled
-                        ? "Disable history saving"
-                        : "Enable history saving"
+                        ? t("ui.buttons.disableHistorySaving")
+                        : t("ui.buttons.enableHistorySaving")
                 }
                 style={{
                     padding: "6px 12px",
@@ -50,7 +52,7 @@ export function HistoryControls({
                     className={`fa-solid fa-toggle-${isHistorySavingEnabled ? "on" : "off"}`}
                     style={{ marginRight: "6px" }}
                 ></i>
-                {isHistorySavingEnabled ? "Saving Enabled" : "Enable Saving"}
+                {isHistorySavingEnabled ? t("ui.messages.savingEnabled") : t("ui.buttons.enableSaving")}
             </button>
         </div>
     );

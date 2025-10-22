@@ -27,7 +27,6 @@ export function useTranslations(): UseTranslationsReturn {
     const [currentLanguage, setCurrentLanguage] = useState<string>("en");
     const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
-    // Load translations on mount
     useEffect(() => {
         const initTranslations = async () => {
             try {
@@ -57,7 +56,6 @@ export function useTranslations(): UseTranslationsReturn {
         initTranslations();
     }, []);
 
-    // Change language handler
     const changeLanguage = useCallback(
         async (lang: string): Promise<boolean> => {
             try {

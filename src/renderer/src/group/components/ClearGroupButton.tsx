@@ -3,15 +3,19 @@ import React from "react";
 export interface ClearGroupButtonProps {
     onClearGroup: () => void;
     disabled?: boolean;
+    t?: (key: string, fallback?: string | null) => string;
 }
 
 export function ClearGroupButton({
     onClearGroup,
     disabled = false,
+    t = (k: string, f?: string | null) => (f || k),
 }: ClearGroupButtonProps): React.JSX.Element {
     const handleClick = () => {
         if (
-            window.confirm("Are you sure you want to remove all group members?")
+            window.confirm(
+                t("ui.messages.confirmClearGroup"),
+            )
         ) {
             onClearGroup();
         }
@@ -33,7 +37,7 @@ export function ClearGroupButton({
                     className="fa-solid fa-trash-can"
                     style={{ marginRight: "6px" }}
                 ></i>
-                Clear Group
+                {t("ui.buttons.clearGroup")}
             </button>
         </div>
     );

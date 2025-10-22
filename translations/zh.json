@@ -4,6 +4,7 @@
             "nearby": "附近",
             "solo": "独奏",
             "skills": "技能",
+            "combatHistory": "战斗历史",
             "dmg": "伤害",
             "tank": "坦克",
             "heal": "治疗",
@@ -12,7 +13,69 @@
             "unlock": "解锁位置",
             "close": "关闭窗口",
             "move": "移动窗口",
-            "language": "语言"
+            "language": "语言",
+            "showTop10": "前十",
+            "showAll": "全部"
+        },
+        "actions": {
+            "copySummary": "复制摘要"
+        },
+        "messages": {
+            "loading": "正在加载...",
+            "loadingSkills": "正在加载技能...",
+            "failedToLoadSkills": "无法加载技能分解",
+            "waitingForData": "等待游戏数据...",
+            "statisticsReset": "统计重置（保留玩家信息）。",
+            "statisticsCleared": "统计已清除！",
+            "copied": "已复制",
+            "savingEnabled": "已启用保存",
+            "loadingDetails": "正在加载详情...",
+            "selectCombatSession": "请选择左侧的战斗回放",
+            "noAvailablePlayers": "没有可添加的玩家",
+            "confirmClearGroup": "您确定要移除所有小队成员吗？",
+            "noMembersInGroup": "小队中没有成员",
+            "players": "玩家"
+        },
+        "buttons": {
+            "resetStatistics": "重置统计",
+            "openGroup": "打开小队管理",
+            "openHistory": "打开战斗历史",
+            "toggleSkillsView": "切换技能分解视图",
+            "sortDamage": "按伤害排序",
+            "sortDamageTaken": "按承受伤害排序",
+            "sortHealing": "按治疗排序",
+            "zoomOut": "缩小",
+            "zoomIn": "放大",
+            "close": "关闭",
+            "columns": "列",
+            "pauseUpdates": "暂停更新",
+            "resumeUpdates": "恢复更新",
+            "lockWindow": "锁定窗口",
+            "unlockWindow": "解锁窗口",
+            "switchToNearbyMode": "切换到附近模式",
+            "switchToSoloMode": "切换到独奏模式",
+            "refreshHistory": "刷新历史列表",
+            "viewSkillBreakdown": "查看技能分解",
+            "deleteFromRegistry": "从注册表删除",
+            "removeFromGroup": "从队伍移除",
+            "addToGroup": "添加到队伍",
+            "clearGroup": "清空队伍",
+            "addToRegistry": "添加到玩家数据库",
+            "enableHistorySaving": "启用历史保存",
+            "disableHistorySaving": "禁用历史保存",
+            "enableSaving": "启用保存",
+            "toggleTop10All": "切换前十/全部",
+            "save": "保存",
+            "delete": "删除"
+        },
+        "titles": {
+            "combatHistory": "战斗历史",
+            "combatSession": "战斗回放",
+            "skillBreakdown": "技能分解",
+            "playerRegistry": "玩家数据库",
+            "groupMembers": "小队成员",
+            "groupManagement": "小队管理",
+            "availablePlayers": "可用玩家"
         },
         "stats": {
             "dps": "DPS",
@@ -30,18 +93,24 @@
             "critDmgPercent": "暴击伤害%",
             "avgCritDmg": "平均暴击"
         },
+        "group": {
+            "enableGroupFilter": "启用小队过滤",
+            "currentGroupMembers": "当前小队成员："
+        },
         "skills": {
             "total": "总计",
             "count": "次数",
             "avg": "平均",
             "damage": "伤害",
             "healing": "治疗",
-            "noData": "无技能数据"
+            "noData": "无技能数据",
+            "searchPlaceholder": "搜索技能...",
+            "noMatch": "没有匹配的玩家"
         },
-        "messages": {
-            "waitingForData": "等待游戏数据...",
-            "statisticsReset": "统计重置（保留玩家信息）。",
-            "statisticsCleared": "统计已清除！"
+        "states": {
+            "enableSaving": "启用保存",
+            "enableHistorySaving": "启用历史保存",
+            "disableHistorySaving": "禁用历史保存"
         }
     },
     "professions": {
@@ -539,6 +608,9 @@
         "113": "塔塔",
         "114": "木桩",
         "115": "木桩",
+        "titles": {
+            "combatSession": "战斗回放"
+        },
         "116": "木桩",
         "117": "木桩",
         "118": "木桩",

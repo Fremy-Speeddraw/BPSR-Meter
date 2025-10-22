@@ -11,7 +11,6 @@ export interface UsePlayerRegistryReturn {
 export function usePlayerRegistry(): UsePlayerRegistryReturn {
     const [playerRegistry, setPlayerRegistry] = useState<PlayerRegistry>({});
 
-    // Load player registry from server
     const loadRegistry = useCallback(async () => {
         try {
             const response = await fetch("/api/player-registry");
@@ -30,21 +29,17 @@ export function usePlayerRegistry(): UsePlayerRegistryReturn {
         }
     }, []);
 
-    // Load registry on mount
     useEffect(() => {
         loadRegistry();
     }, [loadRegistry]);
 
-    // Refresh registry every 10 seconds
     useEffect(() => {
         const interval = setInterval(loadRegistry, 10000);
         return () => clearInterval(interval);
     }, [loadRegistry]);
 
-    // Get player name with registry fallback
     const getPlayerName = useCallback(
         (uid: string, currentName: string): string => {
-            // If current name is valid, use it
             if (
                 currentName &&
                 currentName !== "Unknown" &&
@@ -63,7 +58,6 @@ export function usePlayerRegistry(): UsePlayerRegistryReturn {
         [playerRegistry],
     );
 
-    // Add player to registry
     const addToRegistry = useCallback(
         async (uid: string, name: string): Promise<boolean> => {
             try {

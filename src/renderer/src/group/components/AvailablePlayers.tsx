@@ -6,12 +6,14 @@ export interface AvailablePlayersProps {
     players: AvailablePlayer[];
     groupMembers: string[];
     onAddPlayer: (uuid: string) => void;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function AvailablePlayers({
     players,
     groupMembers,
     onAddPlayer,
+    t,
 }: AvailablePlayersProps): React.JSX.Element {
     // Filter out players already in group
     const nonGroupPlayers = players.filter(
@@ -20,10 +22,10 @@ export function AvailablePlayers({
 
     return (
         <div className="group-section">
-            <h4>Available Players</h4>
+            <h4>{t("ui.titles.availablePlayers")}</h4>
             <div id="available-players-list" className="available-players-list">
                 {nonGroupPlayers.length === 0 ? (
-                    <div className="empty-state">No available players</div>
+                    <div className="empty-state">{t("ui.messages.noAvailablePlayers")}</div>
                 ) : (
                     nonGroupPlayers.map((player) => {
                         if (!player.uuid) return null;
@@ -44,7 +46,7 @@ export function AvailablePlayers({
                                 className="available-player-item"
                                 onClick={() => onAddPlayer(player.uuid)}
                                 style={{ cursor: "pointer" }}
-                                title="Click to add to group"
+                                title={t("ui.buttons.clickToAddToGroup")}
                             >
                                 <div className="player-info">
                                     <span className="player-name">

@@ -43,7 +43,7 @@ export function HistoryApp(): React.JSX.Element {
     const { playerRegistry, getPlayerName, refreshRegistry } =
         usePlayerRegistry();
 
-    const { translateSkill, translateProfession } = useTranslations();
+    const { translateSkill, translateProfession, t } = useTranslations();
 
     const { scale, isDragging, zoomIn, zoomOut, handleDragStart, handleClose } =
         useWindowControls({
@@ -123,6 +123,7 @@ export function HistoryApp(): React.JSX.Element {
                 onDragStart={handleDragStart}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
+                t={t}
             />
 
             <div className="history-container">
@@ -131,6 +132,7 @@ export function HistoryApp(): React.JSX.Element {
                         isHistorySavingEnabled={isHistorySavingEnabled}
                         onRefresh={handleRefresh}
                         onToggleHistorySaving={toggleHistorySaving}
+                        t={t}
                     />
 
                     <HistoryList
@@ -151,6 +153,7 @@ export function HistoryApp(): React.JSX.Element {
                         translateProfession={translateProfession}
                         onViewSkills={handleViewSkills}
                         selectedTimestamp={selectedTimestamp}
+                        t={t}
                     />
                 </div>
             </div>
@@ -161,6 +164,7 @@ export function HistoryApp(): React.JSX.Element {
                 onClose={closeSkillModal}
                 getPlayerName={getPlayerName}
                 translateSkill={translateSkill}
+                t={t}
             />
         </div>
     );

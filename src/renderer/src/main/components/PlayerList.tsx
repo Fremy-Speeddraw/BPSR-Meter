@@ -9,6 +9,7 @@ export interface PlayerListProps {
     getPlayerName: (uid: string, currentName: string) => string;
     translateProfession: (profession: string) => string;
     t: (key: string, fallback?: string | null) => string;
+    visibleColumns?: Record<string, boolean>;
 }
 
 export function PlayerList({
@@ -18,6 +19,7 @@ export function PlayerList({
     getPlayerName,
     translateProfession,
     t,
+    visibleColumns,
 }: PlayerListProps): React.JSX.Element {
     return (
         <div id="player-bars-container">
@@ -37,6 +39,7 @@ export function PlayerList({
                             getPlayerName={getPlayerName}
                             translateProfession={translateProfession}
                             t={t}
+                            visibleColumns={visibleColumns}
                         />
                     );
                 })}

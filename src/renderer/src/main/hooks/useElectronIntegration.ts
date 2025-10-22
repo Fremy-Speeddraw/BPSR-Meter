@@ -135,7 +135,6 @@ export function useElectronIntegration(
         applyScale(scale - 0.1);
     }, [scale, isLocked, applyScale]);
 
-    // Window dragging
     const handleDragStart = useCallback(
         async (e: React.MouseEvent) => {
             if (isLocked || !window.electronAPI) return;
@@ -159,7 +158,6 @@ export function useElectronIntegration(
         [isLocked],
     );
 
-    // Handle mouse move for dragging (attach to document)
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (
@@ -206,7 +204,6 @@ export function useElectronIntegration(
         };
     }, [isDragging, isLocked, isScrolling]);
 
-    // Mouse over handler for click-through control
     const handleMouseOver = useCallback(
         (e: React.MouseEvent) => {
             if (!window.electronAPI) return;
@@ -250,7 +247,6 @@ export function useElectronIntegration(
         [isLocked],
     );
 
-    // Mouse out handler
     const handleMouseOut = useCallback(
         (e: React.MouseEvent) => {
             setTimeout(() => {
@@ -300,12 +296,10 @@ export function useElectronIntegration(
         [isLocked, isScrolling],
     );
 
-    // Mouse leave handler
     const handleMouseLeave = useCallback(() => {
         disableMouseEvents(currentMouseEventsStateRef, isScrolling);
     }, [isScrolling]);
 
-    // Wheel handler for scrolling
     const handleWheel = useCallback((e: React.WheelEvent) => {
         const scrollableElements = [
             ".skills-container",
@@ -330,7 +324,6 @@ export function useElectronIntegration(
         }
     }, []);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             if (scrollTimeoutRef.current) {
@@ -355,7 +348,6 @@ export function useElectronIntegration(
     };
 }
 
-// Helper functions
 function updateClickThroughState(
     locked: boolean,
     mouseEventsStateRef: React.MutableRefObject<boolean>,

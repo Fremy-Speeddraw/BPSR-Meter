@@ -88,6 +88,7 @@ export interface UseDataFetchingOptions {
     sortDirection: SortDirection;
     manualGroupState: ManualGroupState | null;
     onServerReset?: () => void;
+    showAllPlayers?: boolean;
 }
 
 export interface UseDataFetchingReturn {
@@ -109,6 +110,7 @@ export function useDataFetching(
         sortDirection,
         manualGroupState,
         onServerReset,
+        showAllPlayers,
     } = options;
 
     const [players, setPlayers] = useState<PlayerUser[]>([]);
@@ -121,7 +123,6 @@ export function useDataFetching(
     const lastStartTimeRef = useRef<number>(0);
     const lastTotalDamageRef = useRef<number>(0);
 
-    // Sync pause state from server on mount
     useEffect(() => {
         const syncPauseState = async () => {
             try {
@@ -138,12 +139,10 @@ export function useDataFetching(
         syncPauseState();
     }, []);
 
-    // Toggle pause handler
     const togglePause = useCallback(async () => {
         const newPausedState = !isPaused;
         setIsPaused(newPausedState);
 
-        // Notify server about pause/resume
         try {
             const resp = await fetch("/api/pause", {
                 method: "POST",
@@ -152,7 +151,6 @@ export function useDataFetching(
             });
             const json = await resp.json();
 
-            // Sync with server response
             if (json && typeof json.paused === "boolean") {
                 setIsPaused(json.paused);
             }
@@ -164,7 +162,6 @@ export function useDataFetching(
     // Main data fetching function
     const fetchData = useCallback(async () => {
         try {
-            // Skills view mode - fetch skill breakdown
             if (viewMode === "skills") {
                 const skillsRes = await fetch("/api/skills");
                 const skillsDataRes = await skillsRes.json();
@@ -179,6 +176,22 @@ export function useDataFetching(
                     setIsLoading(
                         Object.keys(skillsDataRes.data.skills).length === 0,
                     );
+
+                    try {
+                        const localUserResponse = await fetch("/api/solo-user");
+                        const localUserData = await localUserResponse.json();
+                        if (
+                            localUserData.user &&
+                            Object.keys(localUserData.user).length > 0
+                        ) {
+                            const currentLocalUid = parseInt(
+                                Object.keys(localUserData.user)[0],
+                                10,
+                            );
+                            setLocalUid(currentLocalUid);
+                        }
+                    } catch (err) {
+                    }
                 } else {
                     setSkillsData(null);
                     setIsLoading(true);
@@ -186,13 +199,10 @@ export function useDataFetching(
                 return;
             }
 
-            // Normal/Solo view mode - fetch player data
-            const apiEndpoint =
-                viewMode === "solo" ? "/api/solo-user" : "/api/data";
+            const apiEndpoint = viewMode === "solo" ? "/api/solo-user" : "/api/data";
             const response = await fetch(apiEndpoint);
             const userData = await response.json();
 
-            // Detect server reset
             if (
                 userData.startTime &&
                 userData.startTime !== lastStartTimeRef.current
@@ -203,7 +213,6 @@ export function useDataFetching(
                 onServerReset?.();
             }
 
-            // Convert users object to array
             let userArray: PlayerUser[] = Object.entries(userData.user).map(
                 ([uid, data]: [string, any]) => ({
                     ...data,
@@ -211,7 +220,6 @@ export function useDataFetching(
                 }),
             );
 
-            // Filter out players with no activity
             userArray = userArray.filter(
                 (u: PlayerUser) =>
                     (u.total_damage && u.total_damage.total > 0) ||
@@ -219,7 +227,6 @@ export function useDataFetching(
                     (u.total_healing && u.total_healing.total > 0),
             );
 
-            // Apply manual group filtering
             if (
                 manualGroupState &&
                 manualGroupState.enabled &&
@@ -235,7 +242,6 @@ export function useDataFetching(
                 );
             }
 
-            // Check if we have data
             if (!userArray || userArray.length === 0) {
                 setPlayers([]);
                 setIsLoading(true);
@@ -244,7 +250,6 @@ export function useDataFetching(
 
             setIsLoading(false);
 
-            // Calculate total damage for percentages
             const sumaTotalDamage = userArray.reduce(
                 (acc: number, u: PlayerUser) =>
                     acc +
@@ -258,7 +263,6 @@ export function useDataFetching(
                 lastTotalDamageRef.current = sumaTotalDamage;
             }
 
-            // Calculate damage percent for each player
             userArray.forEach((u: PlayerUser) => {
                 const userDamage =
                     u.total_damage && u.total_damage.total
@@ -276,7 +280,6 @@ export function useDataFetching(
                         : 0;
             });
 
-            // Get local user UID
             let currentLocalUid: number | null = null;
             if (viewMode === "solo") {
                 const uidKey = Object.keys(userData.user)[0];
@@ -301,28 +304,30 @@ export function useDataFetching(
 
             setLocalUid(currentLocalUid);
 
-            // Sort users
             sortUserArray(userArray, sortColumn, sortDirection);
 
-            // Handle top 10 + local user for nearby mode
             let finalArray = userArray;
-            if (viewMode === "nearby" && currentLocalUid) {
-                const top10 = userArray.slice(0, 10);
-                const isLocalInTop10 = top10.some(
-                    (u: PlayerUser) => u.uid === currentLocalUid,
-                );
-
-                if (userArray.length > 10 && !isLocalInTop10) {
-                    const localUserExtra = userArray.find(
-                        (u: PlayerUser) => u.uid === currentLocalUid,
-                    );
-                    if (localUserExtra) {
-                        finalArray = [...top10, localUserExtra];
-                    } else {
-                        finalArray = userArray;
-                    }
-                } else {
+            if (viewMode === "nearby") {
+                if (showAllPlayers) {
                     finalArray = userArray;
+                } else {
+                    const top10 = userArray.slice(0, 10);
+                    const isLocalInTop10 = currentLocalUid
+                        ? top10.some((u: PlayerUser) => u.uid === currentLocalUid)
+                        : false;
+
+                    if (userArray.length > 10 && !isLocalInTop10 && currentLocalUid) {
+                        const localUserExtra = userArray.find(
+                            (u: PlayerUser) => u.uid === currentLocalUid,
+                        );
+                        if (localUserExtra) {
+                            finalArray = [...top10, localUserExtra];
+                        } else {
+                            finalArray = top10;
+                        }
+                    } else {
+                        finalArray = top10;
+                    }
                 }
             }
 
@@ -334,7 +339,6 @@ export function useDataFetching(
         }
     }, [viewMode, sortColumn, sortDirection, manualGroupState, onServerReset]);
 
-    // Data polling loop (50ms when not paused)
     useInterval(fetchData, isPaused ? null : 50);
 
     return {
@@ -348,7 +352,6 @@ export function useDataFetching(
     };
 }
 
-// Helper function to sort user array
 function sortUserArray(
     userArray: PlayerUser[],
     sortColumn: SortColumn,

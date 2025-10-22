@@ -5,6 +5,7 @@ export interface HistoryHeaderProps {
     onDragStart: (e: React.MouseEvent) => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function HistoryHeader({
@@ -12,6 +13,7 @@ export function HistoryHeader({
     onDragStart,
     onZoomIn,
     onZoomOut,
+    t,
 }: HistoryHeaderProps): React.JSX.Element {
     return (
         <div className="controls gap-1">
@@ -35,8 +37,8 @@ export function HistoryHeader({
                     textTransform: "uppercase",
                     letterSpacing: "0.5px",
                 }}
-            >
-                Combat History
+                >
+                {t("ui.controls.combatHistory")}
             </span>
 
             {/* Spacer */}
@@ -47,7 +49,7 @@ export function HistoryHeader({
                 id="history-zoom-out-btn"
                 className="control-button"
                 onClick={onZoomOut}
-                title="Zoom out"
+                title={t("ui.buttons.zoomOut")}
             >
                 <i className="fa-solid fa-minus"></i>
             </button>
@@ -55,7 +57,7 @@ export function HistoryHeader({
                 id="history-zoom-in-btn"
                 className="control-button"
                 onClick={onZoomIn}
-                title="Zoom in"
+                title={t("ui.buttons.zoomIn")}
             >
                 <i className="fa-solid fa-plus"></i>
             </button>
@@ -65,7 +67,7 @@ export function HistoryHeader({
                 id="close-button"
                 className="control-button"
                 onClick={onClose}
-                title="Close"
+                title={t("ui.buttons.close")}
             >
                 <i className="fa-solid fa-xmark"></i>
             </button>

@@ -58,10 +58,10 @@ export async function fetchSettings(): Promise<Settings> {
         }
 
         logError("fetchSettings", `Invalid response code: ${result.code}`);
-        return {};
+        return null;
     } catch (error) {
         logError("fetchSettings", error);
-        return {};
+        return null;
     }
 }
 

@@ -8,6 +8,7 @@ export interface GroupMembersListProps {
     availablePlayers: AvailablePlayer[];
     playerRegistry: PlayerRegistry;
     onRemoveMember: (uuid: string) => void;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function GroupMembersList({
@@ -15,13 +16,14 @@ export function GroupMembersList({
     availablePlayers,
     playerRegistry,
     onRemoveMember,
+    t,
 }: GroupMembersListProps): React.JSX.Element {
     if (members.length === 0) {
         return (
             <div className="group-section">
-                <h4>Group Members</h4>
+                <h4>{t("ui.titles.groupMembers","Group Members")}</h4>
                 <div className="group-members-list">
-                    <div className="empty-state">No members in group</div>
+                    <div className="empty-state">{t("ui.messages.noMembersInGroup")}</div>
                 </div>
             </div>
         );
@@ -29,7 +31,7 @@ export function GroupMembersList({
 
     return (
         <div className="group-section">
-            <h4>Group Members</h4>
+            <h4>{t("ui.titles.groupMembers","Group Members")}</h4>
             <div id="group-members-list" className="group-members-list">
                 {members.map((uuid) => {
                     // Find player in available players or use registry for name
@@ -62,9 +64,9 @@ export function GroupMembersList({
                             <button
                                 className="btn-remove"
                                 onClick={() => onRemoveMember(uuid)}
-                                title="Remove from group"
+                                title={t("ui.buttons.removeFromGroup","Remove from group")}
                             >
-                                Remove
+                                {t("ui.buttons.remove","Remove")}
                             </button>
                         </div>
                     );

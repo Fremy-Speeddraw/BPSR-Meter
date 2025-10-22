@@ -12,10 +12,39 @@ import { resetStatistics } from "../shared/api";
 import type { ViewMode, SortColumn, SortDirection } from "../shared/types";
 
 export function MainApp(): React.JSX.Element {
-    // UI State
+
     const [viewMode, setViewMode] = useState<ViewMode>("nearby");
     const [sortColumn, setSortColumn] = useState<SortColumn>("totalDmg");
     const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+    const [showAllPlayers, setShowAllPlayers] = useState<boolean>(false);
+    const [skillsScope, setSkillsScope] = useState<"solo" | "nearby">("nearby");
+    const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+        dps: true,
+        hps: true,
+        totalDmg: true,
+        dmgTaken: true,
+        percentDmg: true,
+        critPercent: true,
+        critDmg: true,
+        avgCritDmg: true,
+        luckyPercent: true,
+        peakDps: true,
+        totalHeal: true,
+    });
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem("visibleColumns");
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === "object") {
+                    setVisibleColumns((prev) => ({ ...prev, ...parsed }));
+                }
+            }
+        } catch (err) {
+            console.warn("Failed to load visibleColumns from localStorage", err);
+        }
+    }, []);
 
     // Hooks
     const {
@@ -60,19 +89,21 @@ export function MainApp(): React.JSX.Element {
         onServerReset: () => {
             console.log("Server reset callback triggered");
         },
+        showAllPlayers,
     });
 
-    // Handle view mode toggle (Nearby <-> Solo)
     const handleToggleViewMode = useCallback(() => {
         setViewMode((prev) => (prev === "nearby" ? "solo" : "nearby"));
     }, []);
 
-    // Handle skills mode toggle
     const handleToggleSkillsMode = useCallback(() => {
         setViewMode((prev) => (prev === "skills" ? "nearby" : "skills"));
     }, []);
 
-    // Handle sort column change
+    const handleToggleSkillsScope = useCallback(() => {
+        setSkillsScope((prev) => (prev === "nearby" ? "solo" : "nearby"));
+    }, []);
+
     const handleSortChange = useCallback(
         (column: SortColumn) => {
             if (sortColumn === column) {
@@ -85,25 +116,20 @@ export function MainApp(): React.JSX.Element {
         [sortColumn],
     );
 
-    // Handle sync/reset
     const handleSync = useCallback(async () => {
         await resetStatistics();
     }, []);
 
-    // Handle language toggle
     const handleLanguageToggle = useCallback(async () => {
         const newLang = currentLanguage === "en" ? "zh" : "en";
         await changeLanguage(newLang);
     }, [currentLanguage, changeLanguage]);
 
-    // Handle add to registry with visual feedback
     const handleAddToRegistry = useCallback(
         async (uid: string, name: string) => {
             const success = await addToRegistry(uid, name);
 
             if (success) {
-                // Visual feedback is handled in the PlayerBar component through DOM manipulation
-                // This is acceptable as it's a one-time visual effect
                 const btn = document.querySelector(
                     `.add-to-registry-btn[data-uid="${uid}"]`,
                 ) as HTMLButtonElement;
@@ -126,21 +152,18 @@ export function MainApp(): React.JSX.Element {
         [addToRegistry],
     );
 
-    // Handle window close
     const handleClose = useCallback(() => {
         if (window.electronAPI) {
             window.electronAPI.closeWindow();
         }
     }, []);
 
-    // Handle open group window
     const handleOpenGroup = useCallback(() => {
         if (window.electronAPI) {
             window.electronAPI.openGroupWindow();
         }
     }, []);
 
-    // Handle open history window
     const handleOpenHistory = useCallback(() => {
         if (window.electronAPI) {
             console.log("Opening history window...");
@@ -148,7 +171,6 @@ export function MainApp(): React.JSX.Element {
         }
     }, []);
 
-    // Auto-resize window to content
     useEffect(() => {
         const resizeWindowToContent = () => {
             if (!window.electronAPI?.resizeWindowToContent) return;
@@ -196,17 +218,31 @@ export function MainApp(): React.JSX.Element {
                 viewMode={viewMode}
                 onToggleViewMode={handleToggleViewMode}
                 onToggleSkillsMode={handleToggleSkillsMode}
+                skillsScope={skillsScope}
+                onToggleSkillsScope={handleToggleSkillsScope}
                 sortColumn={sortColumn}
                 onSortChange={handleSortChange}
                 onSync={handleSync}
                 isPaused={isPaused}
                 onTogglePause={togglePause}
+                showAllPlayers={showAllPlayers}
+                onToggleShowAll={() => setShowAllPlayers((s) => !s)}
                 currentLanguage={currentLanguage}
                 onLanguageToggle={handleLanguageToggle}
                 onOpenGroup={handleOpenGroup}
                 onOpenHistory={handleOpenHistory}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
+                visibleColumns={visibleColumns}
+                onToggleColumn={(key: string) => {
+                    const newState = { ...visibleColumns, [key]: !visibleColumns[key] };
+                    setVisibleColumns(newState);
+                    try {
+                        localStorage.setItem("visibleColumns", JSON.stringify(newState));
+                    } catch (e) {
+                        console.warn("Failed to persist visibleColumns to localStorage", e);
+                    }
+                }}
                 t={t}
             />
 
@@ -219,11 +255,16 @@ export function MainApp(): React.JSX.Element {
                 />
             ) : viewMode === "skills" && skillsData ? (
                 <SkillsView
-                    skillsData={skillsData}
+                    skillsData={
+                        skillsScope === "solo" && localUid
+                            ? { [String(localUid)]: skillsData[String(localUid)] }
+                            : skillsData
+                    }
                     startTime={startTime}
                     getPlayerName={getPlayerName}
                     translateProfession={translateProfession}
                     translateSkill={translateSkill}
+                    scope={skillsScope}
                     t={t}
                 />
             ) : (
@@ -233,6 +274,7 @@ export function MainApp(): React.JSX.Element {
                     onAddToRegistry={handleAddToRegistry}
                     getPlayerName={getPlayerName}
                     translateProfession={translateProfession}
+                    visibleColumns={visibleColumns}
                     t={t}
                 />
             )}

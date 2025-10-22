@@ -17,6 +17,9 @@ export interface ControlBarProps {
     // Sorting controls
     sortColumn: SortColumn;
     onSortChange: (column: SortColumn) => void;
+    // Nearby list controls
+    showAllPlayers?: boolean;
+    onToggleShowAll?: () => void;
 
     // Action controls
     onSync: () => void;
@@ -35,6 +38,10 @@ export interface ControlBarProps {
 
     // Translations
     t: (key: string, fallback?: string | null) => string;
+    visibleColumns?: Record<string, boolean>;
+    onToggleColumn?: (key: string) => void;
+    skillsScope?: "solo" | "nearby";
+    onToggleSkillsScope?: () => void;
 }
 
 export function ControlBar({
@@ -47,6 +54,10 @@ export function ControlBar({
     onToggleSkillsMode,
     sortColumn,
     onSortChange,
+    showAllPlayers,
+    onToggleShowAll,
+    skillsScope,
+    onToggleSkillsScope,
     onSync,
     isPaused,
     onTogglePause,
@@ -57,9 +68,12 @@ export function ControlBar({
     onZoomIn,
     onZoomOut,
     t,
+    visibleColumns,
+    onToggleColumn,
 }: ControlBarProps): React.JSX.Element {
-    const showSortButtons = viewMode !== "solo" && viewMode !== "skills";
-    const showNearbyButton = viewMode !== "skills";
+    const isNearby = viewMode === "nearby";
+    const isSkills = viewMode === "skills";
+    const [showColumnsMenu, setShowColumnsMenu] = React.useState(false);
 
     return (
         <div className="controls gap-1">
@@ -71,7 +85,7 @@ export function ControlBar({
                 id="sync-button"
                 className="sync-button"
                 onClick={onSync}
-                title="Reset statistics"
+                title={t("ui.buttons.resetStatistics")}
             >
                 <i className="fa-solid fa-rotate-right sync-icon"></i>
             </button>
@@ -81,7 +95,7 @@ export function ControlBar({
                 id="pause-button"
                 className="control-button"
                 onClick={onTogglePause}
-                title={isPaused ? "Resume updates" : "Pause updates"}
+                title={isPaused ? t("ui.buttons.resumeUpdates") : t("ui.buttons.pauseUpdates")}
             >
                 <i className={`fa-solid fa-${isPaused ? "play" : "pause"}`}></i>
             </button>
@@ -89,9 +103,9 @@ export function ControlBar({
             {/* Group Button */}
             <button
                 id="group-btn"
-                className="control-button advanced-lite-btn group"
+                className="control-button group"
                 onClick={onOpenGroup}
-                title="Open group management"
+                title={t("ui.buttons.openGroup")}
             >
                 <i className="fa-solid fa-users"></i>
             </button>
@@ -101,99 +115,149 @@ export function ControlBar({
                 id="history-btn"
                 className="control-button advanced-lite-btn"
                 onClick={onOpenHistory}
-                title="Open combat history"
+                title={t("ui.buttons.openHistory")}
             >
                 <i className="fa-solid fa-clock-rotate-left"></i>
             </button>
 
-            {/* Nearby/Solo Toggle */}
-            {showNearbyButton && (
-                <button
-                    id="nearby-group-btn"
-                    className={`control-button advanced-lite-btn ${viewMode === "solo" ? "solo" : ""}`}
-                    onClick={onToggleViewMode}
-                    title={
-                        viewMode === "nearby"
-                            ? "Switch to Solo mode"
-                            : "Switch to Nearby mode"
-                    }
-                >
-                    {viewMode === "nearby" ? "Nearby" : "Solo"}
-                </button>
-            )}
+            {/* Skills View Toggle */}
+            <button
+                id="skills-btn"
+                className={`control-button advanced-lite-btn ${viewMode === "skills" ? "active" : ""}`}
+                onClick={onToggleSkillsMode}
+                title={t("ui.buttons.toggleSkillsView")}
+            >
+                <i className="fa-solid fa-chart-line mr-2"></i> {t("ui.controls.skills")}
+            </button>
 
             <div className="flex gap-1 mx-auto">
-                {/* Skills View Toggle */}
+                {/* Nearby/Solo Toggle */}
                 <button
-                    id="skills-btn"
-                    className={`control-button advanced-lite-btn ${viewMode === "skills" ? "active" : ""}`}
-                    onClick={onToggleSkillsMode}
-                    title="Toggle skills breakdown view"
+                    id="nearby-group-btn"
+                    className={`control-button advanced-lite-btn`}
+                    onClick={() => {
+                        if (viewMode === "skills") {
+                            onToggleSkillsScope && onToggleSkillsScope();
+                        } else {
+                            onToggleViewMode();
+                        }
+                    }}
+                    title={
+                        viewMode === "nearby"
+                            ? t("ui.buttons.switchToSoloMode")
+                            : t("ui.buttons.switchToNearbyMode")
+                    }
                 >
-                    <i className="fa-solid fa-chart-line mr-2"></i> Skills
+                    {viewMode === "skills"
+                        ? skillsScope === "nearby"
+                            ? t("ui.controls.nearby")
+                            : t("ui.controls.solo")
+                        : viewMode === "nearby"
+                        ? t("ui.controls.nearby")
+                        : t("ui.controls.solo")}
                 </button>
-                {/* Sort Buttons - only show in nearby mode */}
-                {showSortButtons && (
+
+                {/* If in skills view, hide sort and column controls */}
+                {!isSkills && (
                     <>
                         <button
                             id="sort-dmg-btn"
                             className={`sort-button ${sortColumn === "totalDmg" ? "active" : ""}`}
-                            onClick={() => onSortChange("totalDmg")}
-                            title="Sort by damage"
+                            onClick={() => isNearby && onSortChange("totalDmg")}
+                            title={t("ui.buttons.sortDamage")}
+                            disabled={!isNearby}
+                            style={{ opacity: isNearby ? 1 : 0.4, cursor: isNearby ? "pointer" : "not-allowed" }}
                         >
                             DMG
                         </button>
                         <button
                             id="sort-tank-btn"
                             className={`sort-button ${sortColumn === "totalDmgTaken" ? "active" : ""}`}
-                            onClick={() => onSortChange("totalDmgTaken")}
-                            title="Sort by damage taken"
+                            onClick={() => isNearby && onSortChange("totalDmgTaken")}
+                            title={t("ui.buttons.sortDamageTaken")}
+                            disabled={!isNearby}
+                            style={{ opacity: isNearby ? 1 : 0.4, cursor: isNearby ? "pointer" : "not-allowed" }}
                         >
                             Tank
                         </button>
                         <button
                             id="sort-heal-btn"
                             className={`sort-button ${sortColumn === "totalHeal" ? "active" : ""}`}
-                            onClick={() => onSortChange("totalHeal")}
-                            title="Sort by healing"
+                            onClick={() => isNearby && onSortChange("totalHeal")}
+                            title={t("ui.buttons.sortHealing")}
+                            disabled={!isNearby}
+                            style={{ opacity: isNearby ? 1 : 0.4, cursor: isNearby ? "pointer" : "not-allowed" }}
                         >
                             Heal
                         </button>
+                        {/* Show Top 10 / All toggle - rendered but disabled outside nearby mode */}
+                        <button
+                            id="toggle-top10-all"
+                            className={`control-button advanced-lite-btn ${showAllPlayers ? "active" : ""}`}
+                            onClick={() => isNearby && onToggleShowAll && onToggleShowAll()}
+                            title={t("ui.buttons.toggleTop10All")}
+                            disabled={!isNearby}
+                            style={{ opacity: isNearby ? 1 : 0.4, cursor: isNearby ? "pointer" : "not-allowed" }}
+                        >
+                            {showAllPlayers ? t("ui.controls.showAll") : t("ui.controls.showTop10")}
+                        </button>
+                        {/* Columns toggle menu - visible and interactive except in skills (we're in !isSkills) */}
+                        <div style={{ position: "relative" }}>
+                            <button
+                                id="columns-btn"
+                                className="control-button"
+                                onClick={() => setShowColumnsMenu((s) => !s)}
+                                title={t("ui.buttons.columns")}
+                            >
+                                <i className="fa-solid fa-table-cells"></i>
+                            </button>
+                            {showColumnsMenu && visibleColumns && onToggleColumn && (
+                                <div className="columns-menu w-[calc(200px*var(--scale))]" style={{ position: "absolute", right: 0, top: "36px", background: "var(--bg-darker)", border: "1px solid var(--border)", padding: "8px", borderRadius: "4px", zIndex: 50 }}>
+                                    {Object.keys(visibleColumns).map((key) => (
+                                        <label key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                            <input type="checkbox" checked={!!visibleColumns[key]} onChange={() => onToggleColumn(key)} />
+                                            <span style={{ fontSize: 12 }}>{t(`ui.stats.${key}`, key)}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </>
                 )}
             </div>
 
-            {/* Zoom Controls */}
-            <div className="flex ml-auto gap-1">
-                <button
-                    id="zoom-out-btn"
-                    className="control-button"
-                    onClick={onZoomOut}
-                    title="Zoom out"
-                    disabled={isLocked}
-                    style={{
-                        opacity: isLocked ? 0.3 : 1,
-                        cursor: isLocked ? "not-allowed" : "pointer",
-                    }}
-                >
-                    <i className="fa-solid fa-minus"></i>
-                </button>
-                <button
-                    id="zoom-in-btn"
-                    className="control-button"
-                    onClick={onZoomIn}
-                    title="Zoom in"
-                    disabled={isLocked}
-                    style={{
-                        opacity: isLocked ? 0.3 : 1,
-                        cursor: isLocked ? "not-allowed" : "pointer",
-                    }}
-                >
-                    <i className="fa-solid fa-plus"></i>
-                </button>
-            </div>
-
             <div className="flex gap-1 ml-2">
+
+                {/* Zoom Controls */}
+                <div className="flex gap-1">
+                    <button
+                        id="zoom-out-btn"
+                        className="control-button"
+                        onClick={onZoomOut}
+                        title={t("ui.buttons.zoomOut")}
+                        disabled={isLocked}
+                        style={{
+                            opacity: isLocked ? 0.3 : 1,
+                            cursor: isLocked ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        <i className="fa-solid fa-minus"></i>
+                    </button>
+                    <button
+                        id="zoom-in-btn"
+                        className="control-button"
+                        onClick={onZoomIn}
+                        title={t("ui.buttons.zoomIn")}
+                        disabled={isLocked}
+                        style={{
+                            opacity: isLocked ? 0.3 : 1,
+                            cursor: isLocked ? "not-allowed" : "pointer",
+                        }}
+                    >
+                        <i className="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
                 {/* Language Toggle */}
                 <button
                     id="language-btn"
@@ -201,7 +265,7 @@ export function ControlBar({
                     onClick={onLanguageToggle}
                     title={
                         currentLanguage === "en"
-                            ? "Switch to Chinese"
+                            ? "切换到中文"
                             : "Switch to English"
                     }
                 >
@@ -215,7 +279,7 @@ export function ControlBar({
                     id="lock-button"
                     className="control-button"
                     onClick={onToggleLock}
-                    title={isLocked ? "Unlock position" : "Lock position"}
+                    title={isLocked ? t("ui.buttons.unlockWindow") : t("ui.buttons.lockWindow")}
                 >
                     <i
                         className={`fa-solid fa-${isLocked ? "lock" : "lock-open"}`}
@@ -227,7 +291,7 @@ export function ControlBar({
                     id="close-button"
                     className="control-button"
                     onClick={onClose}
-                    title="Close"
+                    title={t("ui.buttons.close")}
                     style={{
                         opacity: isLocked ? 0.3 : 1,
                         cursor: isLocked ? "not-allowed" : "pointer",

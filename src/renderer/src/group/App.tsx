@@ -9,6 +9,7 @@ import {
 } from "./components";
 import { useGroupState, useAvailablePlayers, useWindowControls } from "./hooks";
 import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
+import { useTranslations } from "../main/hooks/useTranslations";
 
 export function GroupApp(): React.JSX.Element {
     // Hooks
@@ -22,6 +23,8 @@ export function GroupApp(): React.JSX.Element {
 
     const { playerRegistry, addToRegistry, refreshRegistry } =
         usePlayerRegistry();
+
+    const { t } = useTranslations();
 
     const { availablePlayers, isLoading, refreshPlayers } =
         useAvailablePlayers(playerRegistry);
@@ -126,6 +129,7 @@ export function GroupApp(): React.JSX.Element {
                 onDragStart={handleDragStart}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
+                t={t}
             />
 
             <div className="group-window">
@@ -133,11 +137,13 @@ export function GroupApp(): React.JSX.Element {
                     enabled={groupState.enabled}
                     memberCount={groupState.members.length}
                     onToggle={toggleGroupEnabled}
+                    t={t}
                 />
 
                 <ClearGroupButton
                     onClearGroup={handleClearGroup}
                     disabled={groupState.members.length === 0}
+                    t={t}
                 />
 
                 <GroupMembersList
@@ -145,18 +151,21 @@ export function GroupApp(): React.JSX.Element {
                     availablePlayers={availablePlayers}
                     playerRegistry={playerRegistry}
                     onRemoveMember={handleRemoveMember}
+                    t={t}
                 />
 
                 <AvailablePlayers
                     players={availablePlayers}
                     groupMembers={groupState.members}
                     onAddPlayer={handleAddPlayer}
+                    t={t}
                 />
 
                 <PlayerRegistrySection
                     playerRegistry={playerRegistry}
                     onSavePlayer={handleSaveToRegistry}
                     onDeletePlayer={handleDeleteFromRegistry}
+                    t={t}
                 />
             </div>
         </div>

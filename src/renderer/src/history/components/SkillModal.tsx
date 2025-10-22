@@ -8,6 +8,7 @@ export interface SkillModalProps {
     onClose: () => void;
     getPlayerName: (uid: string, currentName: string) => string;
     translateSkill: (skillId: string, fallback: string) => string;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function SkillModal({
@@ -16,6 +17,7 @@ export function SkillModal({
     onClose,
     getPlayerName,
     translateSkill,
+    t,
 }: SkillModalProps): React.JSX.Element {
     const isOpen = playerSkills !== null || isLoading;
 
@@ -40,14 +42,14 @@ export function SkillModal({
                 <div className="modal-header">
                     <h3 id="skill-modal-title">
                         {playerSkills
-                            ? `${getPlayerName(String(playerSkills.uid), playerSkills.name)} - Skill Breakdown`
-                            : "Loading..."}
+                            ? `${getPlayerName(String(playerSkills.uid), playerSkills.name)} - ${t("ui.titles.skillBreakdown","Skill Breakdown")}`
+                            : t("ui.messages.loading","Loading...")}
                     </h3>
                     <button
                         id="close-skill-modal"
                         className="control-button"
                         onClick={onClose}
-                        title="Close"
+                        title={t("ui.buttons.close")}
                     >
                         <i className="fa-solid fa-xmark"></i>
                     </button>
@@ -57,7 +59,7 @@ export function SkillModal({
                     {isLoading ? (
                         <div className="loading-indicator">
                             <i className="fa-solid fa-spinner fa-spin"></i>
-                            Loading skills...
+                            {t("ui.messages.loadingSkills","Loading skills...")}
                         </div>
                     ) : playerSkills ? (
                         <div className="skill-list">
@@ -115,7 +117,7 @@ export function SkillModal({
                                             <div className="skill-details">
                                                 <div className="skill-detail">
                                                     <span className="detail-label">
-                                                        Share:
+                                                        {t("ui.stats.percentDmg","Share")}
                                                     </span>
                                                     <span className="detail-value">
                                                         {percentage.toFixed(1)}%
@@ -123,7 +125,7 @@ export function SkillModal({
                                                 </div>
                                                 <div className="skill-detail">
                                                     <span className="detail-label">
-                                                        Hits:
+                                                        {t("ui.skills.count","Hits")}
                                                     </span>
                                                     <span className="detail-value">
                                                         {skill.totalCount.toLocaleString()}
@@ -131,7 +133,7 @@ export function SkillModal({
                                                 </div>
                                                 <div className="skill-detail">
                                                     <span className="detail-label">
-                                                        Crit:
+                                                        {t("ui.stats.critPercent","Crit")}
                                                     </span>
                                                     <span className="detail-value">
                                                         {critRate.toFixed(1)}%
@@ -139,7 +141,7 @@ export function SkillModal({
                                                 </div>
                                                 <div className="skill-detail">
                                                     <span className="detail-label">
-                                                        Lucky:
+                                                        {t("ui.stats.luckyPercent","Lucky")}
                                                     </span>
                                                     <span className="detail-value">
                                                         {luckyRate.toFixed(1)}%
@@ -168,7 +170,7 @@ export function SkillModal({
                                     marginBottom: "12px",
                                 }}
                             ></i>
-                            <p>Failed to load skill breakdown</p>
+                            <p>{t("ui.messages.failedToLoadSkills","Failed to load skill breakdown")}</p>
                         </div>
                     )}
                 </div>

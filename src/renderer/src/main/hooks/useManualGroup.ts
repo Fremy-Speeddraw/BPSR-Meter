@@ -10,7 +10,6 @@ export function useManualGroup(): UseManualGroupReturn {
     const [manualGroupState, setManualGroupState] =
         useState<ManualGroupState | null>(null);
 
-    // Load manual group state from server
     const loadGroupState = useCallback(async () => {
         try {
             const response = await fetch("/api/manual-group");
@@ -24,12 +23,10 @@ export function useManualGroup(): UseManualGroupReturn {
         }
     }, []);
 
-    // Load group state on mount
     useEffect(() => {
         loadGroupState();
     }, [loadGroupState]);
 
-    // Refresh group state every 2 seconds
     useEffect(() => {
         const interval = setInterval(loadGroupState, 2000);
         return () => clearInterval(interval);

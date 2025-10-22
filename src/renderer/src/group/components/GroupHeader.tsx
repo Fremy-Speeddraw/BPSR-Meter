@@ -5,6 +5,7 @@ export interface GroupHeaderProps {
     onDragStart: (e: React.MouseEvent) => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
+    t: (key: string, fallback?: string | null) => string;
 }
 
 export function GroupHeader({
@@ -12,6 +13,7 @@ export function GroupHeader({
     onDragStart,
     onZoomIn,
     onZoomOut,
+    t,
 }: GroupHeaderProps): React.JSX.Element {
     return (
         <div className="group-header">
@@ -26,7 +28,7 @@ export function GroupHeader({
             </div>
 
             {/* Window Title */}
-            <span className="group-title">Group Management</span>
+            <span className="group-title">{t("ui.titles.groupManagement","Group Management")}</span>
 
             {/* Spacer */}
             <div style={{ flex: 1 }}></div>
@@ -36,7 +38,7 @@ export function GroupHeader({
                 id="group-zoom-out-btn"
                 className="control-button"
                 onClick={onZoomOut}
-                title="Zoom out"
+                title={t("ui.buttons.zoomOut","Zoom out")}
             >
                 <i className="fa-solid fa-minus"></i>
             </button>
@@ -44,7 +46,7 @@ export function GroupHeader({
                 id="group-zoom-in-btn"
                 className="control-button"
                 onClick={onZoomIn}
-                title="Zoom in"
+                title={t("ui.buttons.zoomIn","Zoom in")}
             >
                 <i className="fa-solid fa-plus"></i>
             </button>
@@ -54,7 +56,7 @@ export function GroupHeader({
                 id="group-close-button"
                 className="control-button"
                 onClick={onClose}
-                title="Close"
+                title={t("ui.buttons.close","Close")}
             >
                 <i className="fa-solid fa-xmark"></i>
             </button>

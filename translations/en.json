@@ -4,6 +4,7 @@
             "nearby": "Nearby",
             "solo": "Solo",
             "skills": "Skills",
+            "combatHistory": "Combat History",
             "dmg": "DMG",
             "tank": "Tank",
             "heal": "Heal",
@@ -12,7 +13,69 @@
             "unlock": "Unlock position",
             "close": "Close window",
             "move": "Move window",
-            "language": "Language"
+            "language": "Language",
+            "showTop10": "Top 10",
+            "showAll": "All"
+        },
+        "actions": {
+            "copySummary": "Copy summary"
+        },
+        "messages": {
+            "loading": "Loading...",
+            "loadingSkills": "Loading skills...",
+            "failedToLoadSkills": "Failed to load skills breakdown",
+            "waitingForData": "Waiting for game data...",
+            "statisticsReset": "Statistics reset (player info preserved).",
+            "statisticsCleared": "Statistics cleared!",
+            "copied": "Copied",
+            "savingEnabled": "Saving Enabled",
+            "loadingDetails": "Loading details...",
+            "selectCombatSession": "Select a combat session from the list",
+            "noAvailablePlayers": "No available players to add",
+            "confirmClearGroup": "Are you sure you want to remove all group members?",
+            "noMembersInGroup": "No members in group",
+            "players": "players"
+        },
+        "buttons": {
+            "resetStatistics": "Reset statistics",
+            "openGroup": "Open group management",
+            "openHistory": "Open combat history",
+            "toggleSkillsView": "Toggle skills breakdown view",
+            "sortDamage": "Sort by damage",
+            "sortDamageTaken": "Sort by damage taken",
+            "sortHealing": "Sort by healing",
+            "zoomOut": "Zoom out",
+            "zoomIn": "Zoom in",
+            "close": "Close",
+            "columns": "Columns",
+            "pauseUpdates": "Pause updates",
+            "resumeUpdates": "Resume updates",
+            "lockWindow": "Lock window",
+            "unlockWindow": "Unlock window",
+            "switchToNearbyMode": "Switch to Nearby mode",
+            "switchToSoloMode": "Switch to Solo mode",
+            "refreshHistory": "Refresh history list",
+            "viewSkillBreakdown": "View skill breakdown",
+            "deleteFromRegistry": "Delete from registry",
+            "removeFromGroup": "Remove from group",
+            "addToGroup": "Add to group",
+            "clearGroup": "Clear group",
+            "addToRegistry": "Add to Player Registry",
+            "enableHistorySaving": "Enable history saving",
+            "disableHistorySaving": "Disable history saving",
+            "enableSaving": "Enable Saving",
+            "toggleTop10All": "Toggle Top 10 / All",
+            "save": "Save",
+            "delete": "Delete"
+        },
+        "titles": {
+            "combatHistory": "Combat History",
+            "combatSession": "Combat Session",
+            "skillBreakdown": "Skill Breakdown",
+            "playerRegistry": "Player Registry",
+            "groupMembers": "Group Members",
+            "groupManagement": "Group Management",
+            "availablePlayers": "Available Players"
         },
         "stats": {
             "dps": "DPS",
@@ -30,18 +93,23 @@
             "critDmgPercent": "Crit DMG %",
             "avgCritDmg": "Avg Crit"
         },
+        "group": {
+            "enableGroupFilter": "Enable Group Filter",
+            "currentGroupMembers": "Current group members:"
+        },
         "skills": {
             "total": "Total",
             "count": "Count",
             "avg": "Avg",
             "damage": "DMG",
             "healing": "HEAL",
-            "noData": "No skill data available"
+            "noData": "No skill data available",
+            "searchPlaceholder": "Search skills...",
+            "noMatch": "No matching players"
         },
-        "messages": {
-            "waitingForData": "Waiting for game data...",
-            "statisticsReset": "Statistics reset (player info preserved).",
-            "statisticsCleared": "Statistics cleared!"
+        "placeholders": {
+            "playerUid": "Player UID",
+            "playerName": "Player Name"
         }
     },
     "professions": {
