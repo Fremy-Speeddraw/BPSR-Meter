@@ -1,6 +1,6 @@
 {
     "name": "bpsr-meter",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "BPSR Meter",
     "author": "Fremy-Speeddraw",
     "type": "module",
