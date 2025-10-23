@@ -91,36 +91,32 @@ export function GroupApp(): React.JSX.Element {
         [refreshRegistry],
     );
 
-    // Auto-resize window to content
     useEffect(() => {
-        const resizeWindowToContent = () => {
-            if (!window.electronAPI?.resizeWindowToContent) return;
+        if (!window.electronAPI?.resizeWindowToContent) return;
+        let debounceTimer: number | null = null;
 
-            requestAnimationFrame(() => {
-                const groupMeter = document.querySelector(".group-meter");
-                if (groupMeter) {
-                    const rect = groupMeter.getBoundingClientRect();
-                    const width = Math.ceil(rect.width);
-                    const height = Math.ceil(rect.height);
-
-                    if (
-                        width >= 100 &&
-                        height >= 50 &&
-                        width <= 2000 &&
-                        height <= 1500
-                    ) {
-                        window.electronAPI.resizeWindowToContent(
-                            "group",
-                            width,
-                            height,
-                        );
-                    }
-                }
-            });
+        const resizeIfNeeded = (width: number, height: number) => {
+            window.electronAPI.resizeWindowToContent("group", width, height);
         };
 
-        const interval = setInterval(resizeWindowToContent, 100);
-        return () => clearInterval(interval);
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (!entry) return;
+            const cr = entry.target.getBoundingClientRect();
+            if (debounceTimer) window.clearTimeout(debounceTimer);
+            debounceTimer = window.setTimeout(() => {
+                resizeIfNeeded(Math.ceil(cr.width), Math.ceil(cr.height));
+                debounceTimer = null;
+            }, 80);
+        });
+
+        const el = document.querySelector(".group-meter");
+        if (el) observer.observe(el);
+
+        return () => {
+            if (debounceTimer) window.clearTimeout(debounceTimer);
+            observer.disconnect();
+        };
     }, []);
 
     return (
