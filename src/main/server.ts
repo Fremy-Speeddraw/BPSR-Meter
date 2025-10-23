@@ -108,10 +108,11 @@ async function main(): Promise<void> {
         current_arg_index++;
     }
 
-    const deviceNum = args[current_arg_index];
+    const deviceNum = globalSettings?.selectedDevice || args[current_arg_index];
 
     try {
-        await sniffer.start(deviceNum, PacketProcessor);
+        sniffer.setPacketProcessor(PacketProcessor);
+        await sniffer.start(deviceNum, sniffer.getPacketProcessor());
     } catch (error) {
         logger.error(`Error starting sniffer: ${(error as Error).message}`);
         rl.close();
@@ -167,6 +168,7 @@ async function main(): Promise<void> {
         logger,
         globalSettings,
         playerRegistry,
+        sniffer,
     );
 
     server.listen(server_port, "0.0.0.0", () => {

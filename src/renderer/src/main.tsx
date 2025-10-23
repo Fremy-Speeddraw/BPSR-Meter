@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import MainApp from "./main/App";
 import GroupApp from "./group/App";
 import HistoryApp from "./history/App";
+import DeviceApp from "./device/App";
 import "/css/style.css";
 
 console.log("React entry point loaded");
@@ -17,6 +18,8 @@ const renderApp = () => {
         return <GroupApp />;
     } else if (path.includes("history.html")) {
         return <HistoryApp />;
+    } else if (path.includes("device.html")) {
+        return <DeviceApp />;
     } else {
         return <MainApp />;
     }

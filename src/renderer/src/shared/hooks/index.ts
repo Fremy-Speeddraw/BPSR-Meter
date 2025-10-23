@@ -3,9 +3,4 @@
  */
 
 export { useInterval } from "./useInterval";
-export {
-    useElectron,
-    useElectronLock,
-    useWindowDrag,
-    useWindowZoom,
-} from "./useElectron";
+export { useWindowControls } from "./useWindowControls";

@@ -110,6 +110,20 @@ export function ControlBar({
                 <i className="fa-solid fa-users"></i>
             </button>
 
+            {/* Device Picker Button */}
+            <button
+                id="device-btn"
+                className="control-button advanced-lite-btn"
+                onClick={() => {
+                    if ((window as any).electronAPI && (window as any).electronAPI.openDeviceWindow) {
+                        (window as any).electronAPI.openDeviceWindow();
+                    }
+                }}
+                title={t("ui.buttons.openDevicePicker", "Select Network Device")}
+            >
+                <i className="fa-solid fa-network-wired"></i>
+            </button>
+
             {/* History Button */}
             <button
                 id="history-btn"

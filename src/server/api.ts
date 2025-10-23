@@ -4,8 +4,10 @@ import path from "path";
 import { promises as fsPromises } from "fs";
 import { Server as HTTPServer } from "http";
 import { Server as SocketIOServer } from "socket.io";
+import cap from "cap";
 import type { Logger, GlobalSettings, ApiResponse, PlayerRegistry } from "../types/index";
 import type { UserDataManager } from "./dataManager";
+import Sniffer from "./sniffer";
 
 // Use user data path in production, current directory in development
 const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
@@ -24,6 +26,7 @@ function initializeApi(
     logger: Logger,
     globalSettings: GlobalSettings,
     playerRegistry: PlayerRegistry,
+    sniffer?: Sniffer,
 ): void {
     app.use(cors());
     app.use(express.json());
@@ -123,7 +126,7 @@ function initializeApi(
             try {
                 await fsPromises.writeFile(
                     SETTINGS_PATH,
-                    JSON.stringify(globalSettings, null, 2),
+                    JSON.stringify(globalSettings, null, 4),
                     "utf8",
                 );
             } catch (err) {
@@ -208,6 +211,49 @@ function initializeApi(
             startTime: userDataManager.startTime,
         };
         res.json(data);
+    });
+
+    // List available capture devices (npcap/pcap)
+    app.get("/api/devices", (req: Request, res: Response) => {
+        try {
+            const devices = cap.Cap.deviceList();
+            const simplified = (devices || []).map((d: any, idx: number) => ({
+                id: idx,
+                name: d.name,
+                description: d.description || "",
+                addresses: d.addresses || [],
+            }));
+            res.json({ code: 0, data: simplified });
+        } catch (err) {
+            logger.error("Failed to enumerate devices:", err);
+            res.status(500).json({ code: 1, msg: "Failed to enumerate devices" });
+        }
+    });
+
+    // Get or set selected device in settings
+    app.get("/api/device", async (req: Request, res: Response) => {
+        try {
+            res.json({ code: 0, data: { selectedDevice: globalSettings.selectedDevice || null } });
+        } catch (err) {
+            res.status(500).json({ code: 1, msg: "Failed to read device setting" });
+        }
+    });
+
+    app.post("/api/device", async (req: Request, res: Response) => {
+        try {
+            const { selectedDevice } = req.body;
+            globalSettings.selectedDevice = selectedDevice;
+
+            await fsPromises.writeFile(SETTINGS_PATH, JSON.stringify(globalSettings, null, 4), "utf8");
+
+            await sniffer.stop();
+            await sniffer.start(selectedDevice !== undefined ? selectedDevice : "auto", sniffer.getPacketProcessor());
+
+            res.json({ code: 0, data: { selectedDevice } });
+        } catch (err) {
+            logger.error("Failed to persist selected device:", err);
+            res.status(500).json({ code: 1, msg: "Failed to persist selected device" });
+        }
     });
 
     app.get(
@@ -375,7 +421,7 @@ function initializeApi(
         Object.assign(globalSettings, newSettings);
         await fsPromises.writeFile(
             SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 2),
+            JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
         res.json({ code: 0, data: globalSettings });
@@ -425,7 +471,7 @@ function initializeApi(
         globalSettings.language = language;
         await fsPromises.writeFile(
             SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 2),
+            JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
 
@@ -456,7 +502,7 @@ function initializeApi(
 
         await fsPromises.writeFile(
             SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 2),
+            JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
 
@@ -500,7 +546,7 @@ function initializeApi(
 
         await fsPromises.writeFile(
             SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 2),
+            JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
 
@@ -535,7 +581,7 @@ function initializeApi(
                 globalSettings.manualGroup.members.filter((m) => m.uid !== uid);
             await fsPromises.writeFile(
                 SETTINGS_PATH,
-                JSON.stringify(globalSettings, null, 2),
+                JSON.stringify(globalSettings, null, 4),
                 "utf8",
             );
 
@@ -559,7 +605,7 @@ function initializeApi(
         globalSettings.manualGroup.members = [];
         await fsPromises.writeFile(
             SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 2),
+            JSON.stringify(globalSettings, null, 4),
             "utf8",
         );
 
@@ -603,7 +649,7 @@ function initializeApi(
             playerRegistry[uid] = { name };
             await fsPromises.writeFile(
                 PLAYER_REGISTRY_PATH,
-                JSON.stringify(playerRegistry, null, 2),
+                JSON.stringify(playerRegistry, null, 4),
                 "utf8",
             );
 
@@ -635,7 +681,7 @@ function initializeApi(
             delete playerRegistry[uid];
             await fsPromises.writeFile(
                 PLAYER_REGISTRY_PATH,
-                JSON.stringify(playerRegistry, null, 2),
+                JSON.stringify(playerRegistry, null, 4),
                 "utf8",
             );
 
@@ -681,7 +727,7 @@ function initializeApi(
             if (updated) {
                 await fsPromises.writeFile(
                     PLAYER_REGISTRY_PATH,
-                    JSON.stringify(playerRegistry, null, 2),
+                    JSON.stringify(playerRegistry, null, 4),
                     "utf8",
                 );
             }

@@ -433,7 +433,7 @@ class PacketProcessor {
 
     #processSyncNearDeltaInfo(payloadBuffer: Buffer) {
         const syncNearDeltaInfo = pb.SyncNearDeltaInfo.decode(payloadBuffer);
-        // this.logger.debug(JSON.stringify(syncNearDeltaInfo, null, 2));
+        // this.logger.debug(JSON.stringify(syncNearDeltaInfo, null, 4));
 
         if (!syncNearDeltaInfo.DeltaInfos) return;
         for (const aoiSyncDelta of syncNearDeltaInfo.DeltaInfos) {
@@ -443,7 +443,7 @@ class PacketProcessor {
 
     #processSyncToMeDeltaInfo(payloadBuffer: Buffer) {
         const syncToMeDeltaInfo = pb.SyncToMeDeltaInfo.decode(payloadBuffer);
-        // this.logger.debug(JSON.stringify(syncToMeDeltaInfo, null, 2));
+        // this.logger.debug(JSON.stringify(syncToMeDeltaInfo, null, 4));
 
         const aoiSyncToMeDelta = syncToMeDeltaInfo.DeltaInfo;
 
@@ -463,8 +463,8 @@ class PacketProcessor {
         // for some reason protobufjs doesn't work here, we use google-protobuf instead
         try {
             const syncContainerData = pb.SyncContainerData.decode(payloadBuffer);
-            // this.logger.debug(JSON.stringify(syncContainerData, null, 2));
-            // fs.writeFileSync('SyncContainerData.json', JSON.stringify(syncContainerData, null, 2));
+            // this.logger.debug(JSON.stringify(syncContainerData, null, 4));
+            // fs.writeFileSync('SyncContainerData.json', JSON.stringify(syncContainerData, null, 4));
 
             if (!syncContainerData.VData) return;
             const vData = syncContainerData.VData;
@@ -680,7 +680,7 @@ class PacketProcessor {
 
     #processSyncNearEntities(payloadBuffer: Buffer) {
         const syncNearEntities = pb.SyncNearEntities.decode(payloadBuffer);
-        // this.logger.debug(JSON.stringify(syncNearEntities, null, 2));
+        // this.logger.debug(JSON.stringify(syncNearEntities, null, 4));
 
         if (!syncNearEntities.Appear) return;
 

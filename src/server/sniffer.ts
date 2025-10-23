@@ -83,30 +83,48 @@ class Sniffer {
     public tcp_next_seq: number;
     public tcp_cache: Map<number, any>;
     public tcp_last_time: number;
+    public lastUnexpectedSeqLogAt: number;
+    public unexpectedSeqCount: number;
     public tcp_lock: Lock;
     public fragmentIpCache: Map<string, any>;
     public FRAGMENT_TIMEOUT: number;
     public eth_queue: any[];
     public capInstance: cap.Cap | null;
-    public packetProcessor: PacketProcessor | null;
+    public PacketProcessor: PacketProcessor | null;
     public isPaused: boolean;
+    #PacketProcessorInstance?: typeof PacketProcessor;
+
+    public running: boolean;
+    #fragmentCleanerInterval: NodeJS.Timeout | null;
 
     constructor(logger: Logger, userDataManager: UserDataManager, globalSettings: GlobalSettings) {
         this.logger = logger;
         this.userDataManager = userDataManager;
-        this.globalSettings = globalSettings; // Pasar globalSettings al sniffer
+        this.globalSettings = globalSettings;
         this.current_server = "";
         this.#data = Buffer.alloc(0);
         this.tcp_next_seq = -1;
         this.tcp_cache = new Map();
         this.tcp_last_time = 0;
+        this.lastUnexpectedSeqLogAt = 0;
+        this.unexpectedSeqCount = 0;
         this.tcp_lock = new Lock();
         this.fragmentIpCache = new Map();
         this.FRAGMENT_TIMEOUT = 30000;
         this.eth_queue = [];
         this.capInstance = null;
-        this.packetProcessor = null;
-        this.isPaused = false; // Estado de pausa para el sniffer
+        this.PacketProcessor = null;
+        this.isPaused = false;
+        this.running = false;
+        this.#fragmentCleanerInterval = null;
+    }
+
+    setPacketProcessor(instance: typeof PacketProcessor) {
+        this.#PacketProcessorInstance = instance;
+    }
+
+    getPacketProcessor() {
+        return this.#PacketProcessorInstance;
     }
 
     setPaused(paused: boolean) {
@@ -378,11 +396,52 @@ class Sniffer {
             }
 
             if (this.tcp_next_seq === -1) {
-                this.logger.error(
-                    "Unexpected TCP capture error! tcp_next_seq is -1",
-                );
-                if (buf.length > 4 && buf.readUInt32BE() < 0x0fffff) {
-                    this.tcp_next_seq = tcpPacket.info.seqno;
+                // Rate-limit this noisy error to once every 5 seconds
+                const now = Date.now();
+                if (now - this.lastUnexpectedSeqLogAt > 5000) {
+                    this.logger.error(
+                        "Unexpected TCP capture error! tcp_next_seq is -1",
+                    );
+                    this.lastUnexpectedSeqLogAt = now;
+                    this.unexpectedSeqCount = 0;
+                } else {
+                    this.unexpectedSeqCount++;
+                    if (this.unexpectedSeqCount % 50 === 0) {
+                        this.logger.warn(
+                            `Repeated tcp_next_seq -1 occurrences: ${this.unexpectedSeqCount}`,
+                        );
+                    }
+                }
+
+                // Try a safe resync strategy:
+                // If we have a buffer that looks like a valid framed packet, use the current TCP seqno
+                // Otherwise, attempt to set tcp_next_seq to seqno + buf.length as a heuristic.
+                try {
+                    if (buf.length > 4) {
+                        const possibleLen = buf.readUInt32BE();
+                        if (possibleLen > 0 && possibleLen < 0x0fffff && buf.length >= possibleLen) {
+                            // buffer looks like a full framed packet; assume this sequence is current
+                            this.tcp_next_seq = tcpPacket.info.seqno;
+                            this.logger.debug(
+                                `Resyncing tcp_next_seq -> ${this.tcp_next_seq} (full packet detected, len=${possibleLen})`,
+                            );
+                        } else {
+                            // fallback heuristic: assume next seq is seqno + buffer length
+                            this.tcp_next_seq = (tcpPacket.info.seqno + buf.length) >>> 0;
+                            this.logger.debug(
+                                `Heuristic resync tcp_next_seq -> ${this.tcp_next_seq} (seqno=${tcpPacket.info.seqno}, bufLen=${buf.length})`,
+                            );
+                        }
+                    } else {
+                        // not enough data to make a decision; set to seqno
+                        this.tcp_next_seq = tcpPacket.info.seqno;
+                        this.logger.debug(
+                            `Minimal resync tcp_next_seq -> ${this.tcp_next_seq} (low buffer length=${buf.length})`,
+                        );
+                    }
+                } catch (e) {
+                    this.logger.warn("Failed to resync tcp_next_seq automatically:", e);
+                    // leave tcp_next_seq as -1 if resync failed
                 }
             }
 
@@ -412,8 +471,8 @@ class Sniffer {
                 if (this.#data.length >= packetSize) {
                     const packet = this.#data.subarray(0, packetSize);
                     this.#data = this.#data.subarray(packetSize);
-                    if (this.packetProcessor) {
-                        this.packetProcessor.processPacket(packet);
+                    if (this.PacketProcessor) {
+                        this.PacketProcessor.processPacket(packet);
                     }
                 } else if (packetSize > 0x0fffff) {
                     this.logger.error(
@@ -459,7 +518,7 @@ class Sniffer {
             throw new Error("No se pudo detectar una interfaz de red válida.");
         }
 
-        this.packetProcessor = new PacketProcessorClass({
+        this.PacketProcessor = new PacketProcessorClass({
             logger: this.logger,
             userDataManager: this.userDataManager,
         });
@@ -481,8 +540,10 @@ class Sniffer {
             this.eth_queue.push(Buffer.from(buffer.subarray(0, nbytes)));
         });
 
+        this.running = true;
+
         (async () => {
-            while (true) {
+            while (this.running) {
                 if (this.eth_queue.length) {
                     const pkt = this.eth_queue.shift();
                     this.processEthPacket(pkt);
@@ -492,7 +553,7 @@ class Sniffer {
             }
         })();
 
-        setInterval(async () => {
+        this.#fragmentCleanerInterval = setInterval(async () => {
             const now = Date.now();
             let clearedFragments = 0;
             for (const [key, cacheEntry] of this.fragmentIpCache) {
@@ -520,6 +581,44 @@ class Sniffer {
                 this.clearTcpCache();
             }
         }, 1000);
+    }
+
+    // Stop the sniffer safely, closing the capture device and clearing timers/loops.
+    async stop(): Promise<void> {
+        try {
+            this.running = false;
+
+            // Close cap instance if open
+            if (this.capInstance) {
+                try {
+                    this.capInstance.close();
+                } catch (e) {
+                    this.logger.warn("Error while closing cap instance:", e);
+                }
+                this.capInstance = null;
+            }
+
+            // Clear the processing queue and packet processor
+            try {
+                this.eth_queue = [];
+                this.fragmentIpCache.clear();
+                this.clearTcpCache();
+                this.PacketProcessor = null;
+            } catch (e) {
+                this.logger.warn("Error while clearing sniffer internal state:", e);
+            }
+
+            // Clear the fragment cleanup interval
+            if (this.#fragmentCleanerInterval) {
+                clearInterval(this.#fragmentCleanerInterval);
+                this.#fragmentCleanerInterval = null;
+            }
+
+            this.logger.info("Sniffer stopped successfully.");
+        } catch (err) {
+            this.logger.error("Error stopping sniffer:", err as any);
+            throw err;
+        }
     }
 }
 

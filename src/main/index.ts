@@ -1,13 +1,7 @@
-import {
-    app,
-    BrowserWindow,
-    ipcMain,
-    IpcMainEvent,
-    IpcMainInvokeEvent,
-} from "electron";
+import { app, BrowserWindow, ipcMain, IpcMainEvent, IpcMainInvokeEvent, screen } from "electron";
 import path from "path";
 import { exec, fork, ChildProcess } from "child_process";
-import { electronApp, optimizer, is } from "@electron-toolkit/utils";
+import { electronApp, is } from "@electron-toolkit/utils";
 import net from "net";
 import fs from "fs";
 
@@ -39,11 +33,13 @@ function logToFile(msg: string): void {
 let mainWindow: BrowserWindow | null;
 let groupWindow: BrowserWindow | null;
 let historyWindow: BrowserWindow | null;
+let deviceWindow: BrowserWindow | null;
 let serverProcess: ChildProcess | null;
 let server_port: number = 8989;
 let lastMainWindowSize = { width: 650, height: 700 };
 let lastGroupWindowSize = { width: 480, height: 530 };
 let lastHistoryWindowSize = { width: 800, height: 600 };
+let lastDeviceWindowSize = { width: 600, height: 400 };
 let isLocked: boolean = false;
 logToFile("==== ELECTRON START ====");
 
@@ -60,6 +56,7 @@ async function loadWindowSizes(): Promise<{
     main?: { width: number; height: number; scale?: number };
     group?: { width: number; height: number };
     history?: { width: number; height: number };
+    device?: { width: number; height: number };
 }> {
     try {
         const settingsPath = getSettingsPath();
@@ -73,7 +70,7 @@ async function loadWindowSizes(): Promise<{
 }
 
 async function saveWindowSize(
-    windowType: "main" | "group" | "history",
+    windowType: "main" | "group" | "history" | "device",
     width: number,
     height: number,
     scale?: number,
@@ -100,7 +97,7 @@ async function saveWindowSize(
 
         await fs.promises.writeFile(
             settingsPath,
-            JSON.stringify(settings, null, 2),
+            JSON.stringify(settings, null, 4),
             "utf8",
         );
         logToFile(
@@ -302,6 +299,10 @@ async function createWindow(): Promise<void> {
 
         if (historyWindow && !historyWindow.isDestroyed()) {
             historyWindow.close();
+        }
+
+        if (deviceWindow && !deviceWindow.isDestroyed()) {
+            deviceWindow.close();
         }
 
         mainWindow = null;
@@ -609,49 +610,136 @@ async function createWindow(): Promise<void> {
         );
     });
 
+    // Open Device Picker Window handler
+    ipcMain.on("open-device-window", async () => {
+        if (deviceWindow) {
+            deviceWindow.focus();
+            return;
+        }
+
+        const savedSizes = await loadWindowSizes();
+        const deviceSize = savedSizes.device || { width: 600, height: 420 };
+
+        deviceWindow = new BrowserWindow({
+            width: deviceSize.width,
+            height: deviceSize.height,
+            minWidth: 400,
+            minHeight: 300,
+            transparent: true,
+            frame: false,
+            alwaysOnTop: true,
+            resizable: true,
+            skipTaskbar: true,
+            show: false,
+            useContentSize: true,
+            webPreferences: {
+                preload: path.join(__dirname, "../../out/preload/index.cjs"),
+                nodeIntegration: true,
+                contextIsolation: true,
+            },
+            icon: path.join(__dirname, "../../icon.ico"),
+            title: "Select Network Device",
+        });
+
+        deviceWindow.setAlwaysOnTop(true, "screen-saver");
+        deviceWindow.setIgnoreMouseEvents(false);
+
+        deviceWindow.once("ready-to-show", () => {
+            if (deviceWindow) {
+                deviceWindow.show();
+                logToFile("Device window ready and shown");
+            }
+        });
+
+        deviceWindow.on("show", () => {
+            if (deviceWindow) {
+                deviceWindow.webContents.send("window-shown");
+            }
+        });
+
+        deviceWindow.on("focus", () => {
+            if (deviceWindow) {
+                deviceWindow.webContents.send("window-focused");
+            }
+        });
+
+        deviceWindow.on("closed", () => {
+            deviceWindow = null;
+        });
+
+        if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
+            deviceWindow.loadURL(
+                process.env["ELECTRON_RENDERER_URL"] + "/device.html",
+            );
+        } else {
+            deviceWindow.loadURL(`http://localhost:${server_port}/device.html`);
+        }
+
+        logToFile("Device picker window opened");
+    });
+
     ipcMain.on(
         "set-window-position",
         (event: IpcMainEvent, x: number, y: number) => {
             const senderWindow = BrowserWindow.fromWebContents(event.sender);
 
             if (senderWindow) {
-                switch (senderWindow) {
-                    case groupWindow:
+                let windowWidth = 0;
+                let windowHeight = 0;
+
+                if (senderWindow === groupWindow) {
+                    windowWidth = lastGroupWindowSize.width;
+                    windowHeight = lastGroupWindowSize.height;
+                } else if (senderWindow === historyWindow) {
+                    windowWidth = lastHistoryWindowSize.width;
+                    windowHeight = lastHistoryWindowSize.height;
+                } else if (senderWindow === deviceWindow) {
+                    windowWidth = lastDeviceWindowSize.width;
+                    windowHeight = lastDeviceWindowSize.height;
+                } else if (senderWindow === mainWindow) {
+                    windowWidth = lastMainWindowSize.width;
+                    windowHeight = lastMainWindowSize.height;
+                } else {
+                    const bounds = senderWindow.getBounds();
+                    windowWidth = bounds.width;
+                    windowHeight = bounds.height;
+                }
+
+                try {
+                    const displays = screen.getAllDisplays();
+                    if (displays && displays.length) {
+                        const minWorkX = Math.min(...displays.map((d) => d.workArea.x));
+                        const maxWorkX = Math.max(
+                            ...displays.map((d) => d.workArea.x + d.workArea.width),
+                        );
+                        const minWorkY = Math.min(...displays.map((d) => d.workArea.y));
+                        const maxWorkY = Math.max(
+                            ...displays.map((d) => d.workArea.y + d.workArea.height),
+                        );
+
+                        const clampedX = Math.min(
+                            Math.max(x, minWorkX),
+                            Math.max(minWorkX, maxWorkX - windowWidth),
+                        );
+                        const clampedY = Math.min(
+                            Math.max(y, minWorkY),
+                            Math.max(minWorkY, maxWorkY - windowHeight),
+                        );
+
                         senderWindow.setBounds(
                             {
-                                x: x,
-                                y: y,
-                                width: lastGroupWindowSize.width,
-                                height: lastGroupWindowSize.height,
+                                x: clampedX,
+                                y: clampedY,
+                                width: windowWidth,
+                                height: windowHeight,
                             },
                             false,
                         );
-                        break;
-                    case historyWindow:
-                        senderWindow.setBounds(
-                            {
-                                x: x,
-                                y: y,
-                                width: lastHistoryWindowSize.width,
-                                height: lastHistoryWindowSize.height,
-                            },
-                            false,
-                        );
-                        break;
-                    case mainWindow:
-                        senderWindow.setBounds(
-                            {
-                                x: x,
-                                y: y,
-                                width: lastMainWindowSize.width,
-                                height: lastMainWindowSize.height,
-                            },
-                            false,
-                        );
-                        break;
-                    default:
+                    } else {
                         senderWindow.setPosition(x, y);
-                        break;
+                    }
+                } catch (e) {
+                    senderWindow.setPosition(x, y);
                 }
             }
         },

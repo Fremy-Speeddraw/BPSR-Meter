@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export interface UseWindowControlsOptions {
     baseWidth: number;
     baseHeight: number;
-    windowType: "main" | "group" | "history";
+    windowType: "main" | "group" | "history" | "device";
 }
 
 export interface UseWindowControlsReturn {

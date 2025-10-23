@@ -33,17 +33,18 @@ export function useAvailablePlayers(
     );
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
+    // Fetch available players from server
     const fetchPlayers = useCallback(async () => {
         try {
             const response = await fetch("/api/data");
             const result = await response.json();
 
             if (result.code === 0 && result.user) {
- 
+                // Convert user object to array with uuid
                 const playersArray: AvailablePlayer[] = Object.entries(
                     result.user,
                 ).map(([uid, userData]: [string, any]) => {
-
+                    // Check playerRegistry for name if userData.name is missing or Unknown
                     const userName =
                         userData.name &&
                         userData.name !== "Unknown" &&
@@ -83,11 +84,12 @@ export function useAvailablePlayers(
         }
     }, [playerRegistry]);
 
-
+    // Fetch players on mount
     useEffect(() => {
         fetchPlayers();
     }, [fetchPlayers]);
 
+    // Auto-refresh every 2 seconds
     useInterval(fetchPlayers, 2000);
 
     return {

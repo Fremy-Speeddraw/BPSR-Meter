@@ -400,6 +400,207 @@ body {
     cursor: help;
 }
 
+/* Device Picker styles */
+.device-app {
+    width: 560px;
+    background: linear-gradient(180deg, rgba(8,12,18,0.85), rgba(6,8,12,0.9));
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 18px;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+    color: var(--text-primary);
+    pointer-events: all;
+    backdrop-filter: blur(6px) saturate(120%);
+}
+
+.device-app h3 {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.device-list {
+    max-height: 360px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 6px;
+}
+
+.device-item {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.16s ease;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255,255,255,0.01);
+}
+
+.device-item:hover {
+    background: rgba(74,158,255,0.04);
+    border-color: rgba(74,158,255,0.06);
+}
+
+.device-item input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-primary);
+    flex-shrink: 0;
+}
+
+.device-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.device-name {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    opacity: 0.95;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.device-no-devices {
+    padding: 12px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.device-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.device-buttons .control-button {
+    pointer-events: all;
+    padding: 6px 12px;
+    height: auto;
+    min-width: 72px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.device-buttons .control-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Custom scrollbar for device list */
+.device-list::-webkit-scrollbar {
+    width: 10px;
+}
+.device-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+.device-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+
+@media (max-width: 640px) {
+    .device-app {
+        width: calc(100vw - 24px);
+        padding: 12px;
+    }
+    .device-list {
+        max-height: 320px;
+    }
+}
+
+.device-app .fa-grip-vertical {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.device-app .control-button {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    color: var(--text-secondary);
+}
+
+.device-app .control-button:hover {
+    background: rgba(74,158,255,0.12);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+}
+
+/* Make the device control bar look like the main window's control bar */
+.device-app .controls {
+    background: var(--bg-darker);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: all;
+}
+
+.device-app .controls .drag-indicator {
+    width: 20px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: move;
+    pointer-events: auto;
+}
+
+.device-app .controls .drag-indicator:hover {
+    color: var(--accent-primary);
+}
+
+.device-app .controls .title {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.device-app .controls .control-button {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.device-app .controls .control-button:hover {
+    background: var(--accent-primary);
+    color: var(--text-primary);
+    border-color: var(--accent-primary);
+}
+
+.device-app .controls .close-button {
+    background: rgba(255,255,255,0.03);
+}
+
 .stat-value[data-tooltip]::after {
     content: attr(data-tooltip);
     position: absolute;

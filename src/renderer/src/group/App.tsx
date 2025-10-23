@@ -7,7 +7,8 @@ import {
     PlayerRegistrySection,
     ClearGroupButton,
 } from "./components";
-import { useGroupState, useAvailablePlayers, useWindowControls } from "./hooks";
+import { useGroupState, useAvailablePlayers } from "./hooks";
+import { useWindowControls } from "../shared/hooks";
 import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
 import { useTranslations } from "../main/hooks/useTranslations";
 

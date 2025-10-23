@@ -10,7 +10,7 @@ export interface ElectronAPI {
     getWindowPosition: () => Promise<{ x: number; y: number }>;
     setWindowPosition: (x: number, y: number) => void;
     resizeWindowToContent: (
-        windowType: "main" | "group" | "history",
+        windowType: "main" | "group" | "history" | "device",
         width: number,
         height: number,
     ) => void;
@@ -18,7 +18,7 @@ export interface ElectronAPI {
     openHistoryWindow: () => void;
     onWindowShown: (callback: () => void) => void;
     saveWindowSize: (
-        windowType: "main" | "group" | "history",
+        windowType: "main" | "group" | "history" | "device",
         width: number,
         height: number,
         scale?: number,

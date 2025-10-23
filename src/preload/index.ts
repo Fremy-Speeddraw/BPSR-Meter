@@ -9,21 +9,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
             "lock-state-changed",
             (_event: IpcRendererEvent, isLocked: boolean) => callback(isLocked),
         ),
-    setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
-        ipcRenderer.send("set-ignore-mouse-events", ignore, options),
+    setIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => ipcRenderer.send("set-ignore-mouse-events", ignore, options),
     getWindowPosition: () => ipcRenderer.invoke("get-window-position"),
-    setWindowPosition: (x: number, y: number) =>
-        ipcRenderer.send("set-window-position", x, y),
+    setWindowPosition: (x: number, y: number) => ipcRenderer.send("set-window-position", x, y),
     resizeWindowToContent: (
         windowType: string,
         width: number,
         height: number,
-    ) =>
-        ipcRenderer.send("resize-window-to-content", windowType, width, height),
+    ) => ipcRenderer.send("resize-window-to-content", windowType, width, height),
     openGroupWindow: () => ipcRenderer.send("open-group-window"),
     openHistoryWindow: () => ipcRenderer.send("open-history-window"),
-    onWindowShown: (callback: () => void) =>
-        ipcRenderer.on("window-shown", () => callback()),
+    openDeviceWindow: () => ipcRenderer.send("open-device-window"),
+    onWindowShown: (callback: () => void) => ipcRenderer.on("window-shown", () => callback()),
     saveWindowSize: (
         windowType: string,
         width: number,
@@ -34,9 +31,6 @@ contextBridge.exposeInMainWorld("electronAPI", {
 });
 
 window.addEventListener("DOMContentLoaded", () => {
-    // @ts-ignore
-    window.test = "Hello World";
-    console.log("Preload script loaded.");
     const replaceText = (selector: string, text: string) => {
         const element = document.getElementById(selector);
         if (element) element.innerText = text;

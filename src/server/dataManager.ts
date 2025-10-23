@@ -818,7 +818,7 @@ export class UserDataManager {
             const allUserDataPath = path.join(logDir, "allUserData.json");
             await fsPromises.writeFile(
                 allUserDataPath,
-                JSON.stringify(allUsersData, null, 2),
+                JSON.stringify(allUsersData, null, 4),
                 "utf8",
             );
 
@@ -826,14 +826,14 @@ export class UserDataManager {
                 const userDataPath = path.join(usersDir, `${uid}.json`);
                 await fsPromises.writeFile(
                     userDataPath,
-                    JSON.stringify(userData, null, 2),
+                    JSON.stringify(userData, null, 4),
                     "utf8",
                 );
             }
 
             await fsPromises.writeFile(
                 path.join(logDir, "summary.json"),
-                JSON.stringify(summary, null, 2),
+                JSON.stringify(summary, null, 4),
                 "utf8",
             );
 

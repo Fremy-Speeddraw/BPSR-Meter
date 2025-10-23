@@ -1,17 +1,7 @@
-import React, { useEffect, useCallback, useState } from "react";
-import {
-    HistoryHeader,
-    HistoryControls,
-    HistoryList,
-    HistoryDetails,
-    SkillModal,
-} from "./components";
-import {
-    useHistoryList,
-    useHistoryDetails,
-    useHistorySettings,
-    useWindowControls,
-} from "./hooks";
+import React, { useEffect, useCallback } from "react";
+import { HistoryHeader, HistoryControls, HistoryList, HistoryDetails, SkillModal } from "./components";
+import { useHistoryList, useHistoryDetails, useHistorySettings } from "./hooks";
+import { useWindowControls } from "../shared/hooks";
 import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
 import { useTranslations } from "../main/hooks/useTranslations";
 
