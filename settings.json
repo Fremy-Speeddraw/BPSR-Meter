@@ -19,5 +19,16 @@
         "members": []
     },
     "playerRegistry": {},
-    "windowSizes": {}
+    "windowSizes": {
+        "main": {
+            "width": 715,
+            "height": 770,
+            "scale": 1.1
+        },
+        "group": {
+            "width": 480,
+            "height": 530,
+            "scale": 1
+        }
+    }
 }

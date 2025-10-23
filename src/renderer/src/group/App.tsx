@@ -91,39 +91,36 @@ export function GroupApp(): React.JSX.Element {
         [refreshRegistry],
     );
 
+    // Auto-resize window to content
     useEffect(() => {
-        if (!window.electronAPI?.resizeWindowToContent) return;
-        let debounceTimer: number | null = null;
+        const resizeWindowToContent = () => {
+            if (!window.electronAPI?.resizeWindowToContent) return;
 
-        const resizeIfNeeded = (width: number, height: number) => {
-            if (
-                width >= 100 &&
-                height >= 50 &&
-                width <= 2000 &&
-                height <= 1500
-            ) {
-                window.electronAPI.resizeWindowToContent("group", width, height);
-            }
+            requestAnimationFrame(() => {
+                const groupMeter = document.querySelector(".group-meter");
+                if (groupMeter) {
+                    const rect = groupMeter.getBoundingClientRect();
+                    const width = Math.ceil(rect.width);
+                    const height = Math.ceil(rect.height);
+
+                    if (
+                        width >= 100 &&
+                        height >= 50 &&
+                        width <= 2000 &&
+                        height <= 1500
+                    ) {
+                        window.electronAPI.resizeWindowToContent(
+                            "group",
+                            width,
+                            height,
+                        );
+                    }
+                }
+            });
         };
 
-        const observer = new ResizeObserver((entries) => {
-            const entry = entries[0];
-            if (!entry) return;
-            const cr = (entry as any).contentRect as DOMRectReadOnly;
-            if (debounceTimer) window.clearTimeout(debounceTimer);
-            debounceTimer = window.setTimeout(() => {
-                resizeIfNeeded(Math.ceil(cr.width), Math.ceil(cr.height));
-                debounceTimer = null;
-            }, 80);
-        });
-
-        const el = document.querySelector(".group-meter");
-        if (el) observer.observe(el);
-
-        return () => {
-            if (debounceTimer) window.clearTimeout(debounceTimer);
-            observer.disconnect();
-        };
+        const interval = setInterval(resizeWindowToContent, 100);
+        return () => clearInterval(interval);
     }, []);
 
     return (
