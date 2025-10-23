@@ -166,40 +166,43 @@ export function MainApp(): React.JSX.Element {
 
     const handleOpenHistory = useCallback(() => {
         if (window.electronAPI) {
-            console.log("Opening history window...");
             window.electronAPI.openHistoryWindow();
         }
     }, []);
 
     useEffect(() => {
-        const resizeWindowToContent = () => {
-            if (!window.electronAPI?.resizeWindowToContent) return;
+        if (!window.electronAPI?.resizeWindowToContent) return;
+        let debounceTimer: number | null = null;
 
-            requestAnimationFrame(() => {
-                const dpsMeter = document.querySelector(".dps-meter");
-                if (dpsMeter) {
-                    const rect = dpsMeter.getBoundingClientRect();
-                    const width = Math.ceil(rect.width);
-                    const height = Math.ceil(rect.height);
-
-                    if (
-                        width >= 100 &&
-                        height >= 50 &&
-                        width <= 2000 &&
-                        height <= 1500
-                    ) {
-                        window.electronAPI.resizeWindowToContent(
-                            "main",
-                            width,
-                            height,
-                        );
-                    }
-                }
-            });
+        const resizeIfNeeded = (width: number, height: number) => {
+            if (
+                width >= 100 &&
+                height >= 50 &&
+                width <= 2000 &&
+                height <= 1500
+            ) {
+                window.electronAPI.resizeWindowToContent("main", width, height);
+            }
         };
 
-        const interval = setInterval(resizeWindowToContent, 100);
-        return () => clearInterval(interval);
+        const observer = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (!entry) return;
+            const cr = (entry as any).contentRect as DOMRectReadOnly;
+            if (debounceTimer) window.clearTimeout(debounceTimer);
+            debounceTimer = window.setTimeout(() => {
+                resizeIfNeeded(Math.ceil(cr.width), Math.ceil(cr.height));
+                debounceTimer = null;
+            }, 80);
+        });
+
+        const el = document.querySelector(".dps-meter");
+        if (el) observer.observe(el);
+
+        return () => {
+            if (debounceTimer) window.clearTimeout(debounceTimer);
+            observer.disconnect();
+        };
     }, []);
 
     return (
