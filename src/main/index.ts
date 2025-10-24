@@ -5,15 +5,10 @@ import { electronApp, is } from "@electron-toolkit/utils";
 import net from "net";
 import fs from "fs";
 
-// Function to safely log to file in packaged environment
 function logToFile(msg: string): void {
-    // Only log in development mode
-    const isDev = process.defaultApp || process.env.NODE_ENV === "development";
-    if (!isDev) return;
-
     try {
-        const userData = app.getPath("userData");
-        const logPath = path.join(userData, "iniciar_log.txt");
+        const userData = is.dev ? process.cwd() : app.getPath("userData");
+        const logPath = path.join(userData, "information_log.txt");
         const timestamp = new Date().toISOString();
         fs.mkdirSync(userData, { recursive: true });
         fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
@@ -23,7 +18,7 @@ function logToFile(msg: string): void {
         console.log(msg);
         try {
             const timestamp = new Date().toISOString();
-            fs.appendFileSync("./iniciar_log.txt", `[${timestamp}] ${msg}\n`);
+            fs.appendFileSync("./information_log.txt", `[${timestamp}] ${msg}\n`);
         } catch (e2) {
             console.error("Fallback log also failed:", e2);
         }
@@ -223,9 +218,9 @@ async function createWindow(): Promise<void> {
     logToFile("User data path: " + userDataPath);
     logToFile(
         "Launching server.js on port " +
-            server_port +
-            " with path: " +
-            serverPath,
+        server_port +
+        " with path: " +
+        serverPath,
     );
 
     serverProcess = fork(serverPath, [server_port.toString()], {
@@ -233,6 +228,7 @@ async function createWindow(): Promise<void> {
         execArgv: [],
         env: {
             ...process.env,
+            resourcesPath: process.resourcesPath,
             USER_DATA_PATH: userDataPath,
         },
     });
@@ -243,7 +239,7 @@ async function createWindow(): Promise<void> {
         if (!serverLoaded && mainWindow) {
             logToFile("ERROR: Server did not respond in time (10s timeout)");
             mainWindow.loadURL(
-                'data:text/html,<h2 style="color:red">Error: Server did not respond in time.<br>Check iniciar_log.txt for details.</h2>',
+                `data:text/html,<h2 style="color:red">Error: Server did not respond in time.<br>Check ${userDataPath}/information_log.txt for details.</h2>`,
             );
         }
     }, 10000);
@@ -328,7 +324,6 @@ async function createWindow(): Promise<void> {
         }
     });
 
-    // Handle close window event - works for any window
     ipcMain.on("close-window", (event: IpcMainEvent) => {
         const senderWindow = BrowserWindow.fromWebContents(event.sender);
         if (senderWindow) {
@@ -526,8 +521,8 @@ async function createWindow(): Promise<void> {
 
         logToFile(
             "Group management window opened from http://localhost:" +
-                server_port +
-                "/group.html",
+            server_port +
+            "/group.html",
         );
     });
 
@@ -605,8 +600,8 @@ async function createWindow(): Promise<void> {
 
         logToFile(
             "History window opened from http://localhost:" +
-                server_port +
-                "/history.html",
+            server_port +
+            "/history.html",
         );
     });
 

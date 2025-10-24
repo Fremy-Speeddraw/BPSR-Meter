@@ -21,15 +21,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: linux
-            artifact_name: linux-dist
           - os: windows-latest
             target: win
             artifact_name: windows-dist
-          - os: macos-latest
-            target: mac
-            artifact_name: macos-dist
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -38,53 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Install system dependencies (Linux/macOS)
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            sudo apt-get update
-            sudo apt-get install -y build-essential libpcap-dev pkg-config python3 imagemagick librsvg2-bin libgdk-pixbuf2.0-0 icoutils libpng-dev pngcrush
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            brew update
-            brew install libpcap imagemagick icoutils
-          fi
-
-      - name: Generate icon.ico (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          if [ -f icon.png ]; then
-            echo "Generating icon.ico from icon.png"
-            # create multiple sizes inside ico
-            convert icon.png -background none -define icon:auto-resize=256,128,96,64,48,32,16 icon.ico || convert icon.png -resize 256x256 icon.ico
-            ls -la icon.ico || true
-          else
-            echo "icon.png missing, skipping icon.ico generation"
-          fi
-
-      - name: Generate icon.icns (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          if [ -f icon.png ]; then
-            echo "Generating icon.icns from icon.png"
-            rm -rf icon.iconset || true
-            mkdir -p icon.iconset
-            sips -z 16 16 icon.png --out icon.iconset/icon_16x16.png
-            sips -z 32 32 icon.png --out icon.iconset/icon_16x16@2x.png
-            sips -z 32 32 icon.png --out icon.iconset/icon_32x32.png
-            sips -z 64 64 icon.png --out icon.iconset/icon_32x32@2x.png
-            sips -z 128 128 icon.png --out icon.iconset/icon_128x128.png
-            sips -z 256 256 icon.png --out icon.iconset/icon_128x128@2x.png
-            sips -z 256 256 icon.png --out icon.iconset/icon_256x256.png
-            sips -z 512 512 icon.png --out icon.iconset/icon_256x256@2x.png
-            sips -z 512 512 icon.png --out icon.iconset/icon_512x512.png
-            sips -z 1024 1024 icon.png --out icon.iconset/icon_512x512@2x.png
-            iconutil -c icns icon.iconset -o icon.icns || true
-            ls -la icon.icns || true
-          else
-            echo "icon.png missing, skipping icon.icns generation"
-          fi
-        shell: bash
 
       - name: Install system dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -125,8 +72,6 @@ jobs:
         with:
           path: ./artifacts
 
-      
-
       - name: List downloaded artifacts
         run: |
           echo "Artifact structure:"
@@ -140,12 +85,10 @@ jobs:
           mkdir -p release_assets
           
           # Copy and organize artifacts with better naming
-          for os_dir in linux windows macos; do
-            if [ -d "./artifacts/${os_dir}-dist" ]; then
-              mkdir -p "release_assets/${os_dir}"
-              cp -r "./artifacts/${os_dir}-dist"/* "release_assets/${os_dir}/" 2>/dev/null || true
-            fi
-          done
+          if [ -d "./artifacts/windows-dist" ]; then
+            mkdir -p "release_assets/windows"
+            cp -r "./artifacts/windows-dist"/* "release_assets/windows/" 2>/dev/null || true
+          fi
           
           echo "Final release assets structure:"
           ls -la release_assets/
@@ -154,25 +97,20 @@ jobs:
       - name: Compress release assets into zips
         run: |
           mkdir -p release_archives
-          for os_dir in linux windows macos; do
-            ASSET_DIR="release_assets/${os_dir}"
-            if [ -d "${ASSET_DIR}" ]; then
-              echo "Creating archive for ${os_dir}"
-              # If there's a dist_electron folder, zip its contents at the archive root
-              if [ -d "${ASSET_DIR}/dist_electron" ]; then
-                pushd "${ASSET_DIR}/dist_electron" >/dev/null
-                # Exclude builder debug, blockmap files and win-unpacked from the archive
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" "linux-unpacked/*" "**/linux-unpacked/*" "mac/*" "**/mac/*" >/dev/null || true
-                popd >/dev/null
-              else
-                # Fallback: zip the asset directory contents (exclude debug files)
-                pushd "${ASSET_DIR}" >/dev/null
-                zip -r "${GITHUB_WORKSPACE:-.}/release_archives/${os_dir}.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" "linux-unpacked/*" "**/linux-unpacked/*" "mac/*" "**/mac/*" >/dev/null || true
-                popd >/dev/null
-              fi
-              ls -la "release_archives/${os_dir}.zip" || true
+          ASSET_DIR="release_assets/windows"
+          if [ -d "${ASSET_DIR}" ]; then
+            echo "Creating archive for windows"
+            if [ -d "${ASSET_DIR}/dist_electron" ]; then
+              pushd "${ASSET_DIR}/dist_electron" >/dev/null
+              zip -r "${GITHUB_WORKSPACE:-.}/release_archives/windows.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" >/dev/null || true
+              popd >/dev/null
+            else
+              pushd "${ASSET_DIR}" >/dev/null
+              zip -r "${GITHUB_WORKSPACE:-.}/release_archives/windows.zip" . -x "builder-debug.yml" "*builder-debug.yml" "*.blockmap" "win-unpacked/*" "**/win-unpacked/*" >/dev/null || true
+              popd >/dev/null
             fi
-          done
+            ls -la "release_archives/windows.zip" || true
+          fi
           echo "Archives produced:" && ls -la release_archives || true
 
       - name: Determine release tag

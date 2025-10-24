@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { spawn } from "child_process";
 import findDefaultNetworkDevice from "../../algo/netInterfaceUtil";
+import WindivertAdapter from "./windivert-adapter";
 import { Lock } from "./dataManager";
 import type { UserDataManager } from "./dataManager";
 import type { Logger } from "winston";
@@ -14,13 +15,7 @@ const decoders = cap.decoders;
 const PROTOCOL = decoders.PROTOCOL;
 const Cap = cap.Cap;
 
-const NPCAP_INSTALLER_PATH = path.join(
-    __dirname,
-    "..",
-    "..",
-    "Dist",
-    "npcap-1.83.exe",
-);
+const NPCAP_INSTALLER_PATH = path.join(__dirname,"..","..","Dist","npcap-1.83.exe");
 
 async function checkAndInstallNpcap(logger: Logger) {
     try {
@@ -81,15 +76,15 @@ class Sniffer {
     public globalSettings: GlobalSettings;
     public current_server: string;
     public tcp_next_seq: number;
-    public tcp_cache: Map<number, any>;
+    public tcp_cache: Map<number, Buffer>;
     public tcp_last_time: number;
     public lastUnexpectedSeqLogAt: number;
     public unexpectedSeqCount: number;
     public tcp_lock: Lock;
     public fragmentIpCache: Map<string, any>;
     public FRAGMENT_TIMEOUT: number;
-    public eth_queue: any[];
-    public capInstance: cap.Cap | null;
+    public eth_queue: Buffer[];
+    public capInstance: cap.Cap | WindivertAdapter | null;
     public PacketProcessor: PacketProcessor | null;
     public isPaused: boolean;
     #PacketProcessorInstance?: typeof PacketProcessor;
@@ -479,7 +474,6 @@ class Sniffer {
                         `Invalid Length!! ${this.#data.length},${packetSize},${this.#data.toString("hex")},${this.tcp_next_seq}`,
                     );
                     process.exit(1);
-                    break;
                 }
             }
         } finally {
@@ -488,10 +482,87 @@ class Sniffer {
     }
 
     async start(deviceNum: number | string, PacketProcessorClass: typeof PacketProcessor) {
-        const npcapReady = await checkAndInstallNpcap(this.logger);
+        const selectedBackend = (() => {
+            if (process.platform !== "win32") return "npcap";
+            const cfg = this.globalSettings?.captureBackend || null;
+            if (cfg === "npcap" || cfg === "windivert") return cfg;
+            return "npcap";
+        })();
 
-        if (!npcapReady) {
-            throw new Error("Npcap no está listo. La aplicación debe salir.");
+        // Only explicit choices supported: npcap or windivert. No automatic fallback.
+        if (selectedBackend === "npcap") {
+            const npcapReady = await checkAndInstallNpcap(this.logger);
+            if (!npcapReady) {
+                throw new Error("Npcap not ready; configured to use npcap.");
+            }
+        }
+
+        // If we should use WinDivert (explicitly), start WinDivert
+        const shouldUseWindivert = selectedBackend === "windivert";
+        if (shouldUseWindivert) {
+            this.logger.info("Using WinDivert backend.");
+
+            this.PacketProcessor = new PacketProcessorClass({
+                logger: this.logger,
+                userDataManager: this.userDataManager,
+            });
+
+            const filter = "ip and tcp";
+            const adapter = new WindivertAdapter(filter, (frame: Buffer) => {
+                this.eth_queue.push(frame);
+            });
+
+            try {
+                await adapter.open();
+                this.capInstance = adapter;
+            } catch (e: any) {
+                this.logger.error("Failed to open WinDivert: " + (e?.message || e));
+                throw new Error("Failed to start sniffer (WinDivert error)");
+            }
+
+            // start the same processing loop as the Cap backend
+            this.running = true;
+            (async () => {
+                while (this.running) {
+                    if (this.eth_queue.length) {
+                        const pkt = this.eth_queue.shift();
+                        this.processEthPacket(pkt);
+                    } else {
+                        await new Promise((r) => setTimeout(r, 1));
+                    }
+                }
+            })();
+
+            this.#fragmentCleanerInterval = setInterval(async () => {
+                const now = Date.now();
+                let clearedFragments = 0;
+                for (const [key, cacheEntry] of this.fragmentIpCache) {
+                    if (now - cacheEntry.timestamp > this.FRAGMENT_TIMEOUT) {
+                        this.fragmentIpCache.delete(key);
+                        clearedFragments++;
+                    }
+                }
+
+                if (clearedFragments > 0) {
+                    this.logger.debug(
+                        `Cleared ${clearedFragments} expired IP fragment caches`,
+                    );
+                }
+
+                if (
+                    this.tcp_last_time &&
+                    Date.now() - this.tcp_last_time > this.FRAGMENT_TIMEOUT
+                ) {
+                    this.logger.warn(
+                        "Cannot capture the next packet! Is the game closed or disconnected? seq: " +
+                        this.tcp_next_seq,
+                    );
+                    this.current_server = "";
+                    this.clearTcpCache();
+                }
+            }, 1000);
+
+            return;
         }
 
         const devices = Cap.deviceList();
@@ -515,7 +586,7 @@ class Sniffer {
                 "Could not automatically detect a valid network interface.",
             );
             this.logger.error("Make sure the game is running and try again.");
-            throw new Error("No se pudo detectar una interfaz de red válida.");
+            throw new Error("No valid network interface detected.");
         }
 
         this.PacketProcessor = new PacketProcessorClass({
@@ -535,7 +606,8 @@ class Sniffer {
                 linkType,
             );
         }
-        this.capInstance.setMinBytes && this.capInstance.setMinBytes(0);
+
+        this.capInstance.setMinBytes(0);
         this.capInstance.on("packet", async (nbytes, trunc) => {
             this.eth_queue.push(Buffer.from(buffer.subarray(0, nbytes)));
         });

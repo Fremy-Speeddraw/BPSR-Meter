@@ -228,9 +228,16 @@ export function ControlBar({
                             {showColumnsMenu && visibleColumns && onToggleColumn && (
                                 <div className="columns-menu w-[calc(200px*var(--scale))]" style={{ position: "absolute", right: 0, top: "36px", background: "var(--bg-darker)", border: "1px solid var(--border)", padding: "8px", borderRadius: "4px", zIndex: 50 }}>
                                     {Object.keys(visibleColumns).map((key) => (
-                                        <label key={key} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <input type="checkbox" checked={!!visibleColumns[key]} onChange={() => onToggleColumn(key)} />
-                                            <span style={{ fontSize: 12 }}>{t(`ui.stats.${key}`, key)}</span>
+                                        <label key={key} className="column-item">
+                                            <input
+                                                id={`col-${key}`}
+                                                type="checkbox"
+                                                className="column-checkbox"
+                                                checked={!!visibleColumns[key]}
+                                                onChange={() => onToggleColumn(key)}
+                                            />
+                                            <span className="fake-checkbox" aria-hidden></span>
+                                            <span className="column-label">{t(`ui.stats.${key}`, key)}</span>
                                         </label>
                                     ))}
                                 </div>

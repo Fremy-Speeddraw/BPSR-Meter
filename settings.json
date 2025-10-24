@@ -20,5 +20,6 @@
     },
     "playerRegistry": {},
     "windowSizes": {
-    }
+    },
+    "captureBackend": "npcap"
 }

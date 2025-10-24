@@ -83,9 +83,8 @@ export interface GlobalSettings {
         group?: { width: number; height: number };
         history?: { width: number; height: number };
     };
-    // Selected capture device (index or name)
     selectedDevice?: number | string | null;
-    // Timestamps to track when pause/resume happened (milliseconds since epoch)
+    captureBackend?: "npcap" | "windivert";
     lastPausedAt?: number | null;
     lastResumedAt?: number | null;
 }

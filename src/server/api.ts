@@ -27,7 +27,7 @@ function initializeApi(
     globalSettings: GlobalSettings,
     playerRegistry: PlayerRegistry,
     sniffer?: Sniffer,
-): void {
+) {
     app.use(cors());
     app.use(express.json());
 
@@ -419,11 +419,9 @@ function initializeApi(
     app.post("/api/settings", async (req: Request, res: Response) => {
         const newSettings = req.body;
         Object.assign(globalSettings, newSettings);
-        await fsPromises.writeFile(
-            SETTINGS_PATH,
-            JSON.stringify(globalSettings, null, 4),
-            "utf8",
-        );
+
+        await fsPromises.writeFile(SETTINGS_PATH, JSON.stringify(globalSettings, null, 4), "utf8");
+
         res.json({ code: 0, data: globalSettings });
     });
 
