@@ -108,7 +108,6 @@ export function useWindowControls(
         applyScale(scale - 0.1);
     }, [scale, applyScale]);
 
-    // Window dragging
     const handleDragStart = useCallback(async (e: React.MouseEvent) => {
         if (!window.electronAPI) return;
 
@@ -128,7 +127,6 @@ export function useWindowControls(
         e.preventDefault();
     }, []);
 
-    // Handle mouse move for dragging
     useEffect(() => {
         const handleMouseMove = (e: MouseEvent) => {
             if (!isDragging || !window.electronAPI || !dragStateRef.current)
@@ -150,14 +148,37 @@ export function useWindowControls(
             }
         };
 
+        const handlePointerMove = (e: PointerEvent) => {
+            if (!isDragging || !window.electronAPI || !dragStateRef.current)
+                return;
+
+            const deltaX = e.screenX - dragStateRef.current.startX;
+            const deltaY = e.screenY - dragStateRef.current.startY;
+            const newX = dragStateRef.current.startWindowX + deltaX;
+            const newY = dragStateRef.current.startWindowY + deltaY;
+
+            window.electronAPI.setWindowPosition(newX, newY);
+        };
+
+        const handlePointerUp = (e: PointerEvent) => {
+            if (isDragging) {
+                setIsDragging(false);
+                dragStateRef.current = null;
+            }
+        };
+
         if (isDragging) {
             document.addEventListener("mousemove", handleMouseMove);
             document.addEventListener("mouseup", handleMouseUp);
+            document.addEventListener("pointermove", handlePointerMove);
+            document.addEventListener("pointerup", handlePointerUp);
         }
 
         return () => {
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
+            document.removeEventListener("pointermove", handlePointerMove);
+            document.removeEventListener("pointerup", handlePointerUp);
         };
     }, [isDragging]);
 

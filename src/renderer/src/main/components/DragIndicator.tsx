@@ -9,11 +9,17 @@ export function DragIndicator({
     onDragStart,
     isLocked,
 }: DragIndicatorProps): React.JSX.Element {
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (isLocked) return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        onDragStart(e);
+    };
+
     return (
         <div
             id="drag-indicator"
             className="drag-indicator"
-            onMouseDown={isLocked ? undefined : onDragStart}
+            onPointerDown={handlePointerDown}
             style={{
                 cursor: isLocked ? "not-allowed" : "move",
                 opacity: isLocked ? 0.3 : 1,

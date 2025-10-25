@@ -1,8 +1,5 @@
 import cap from "cap";
 import { Readable } from "stream";
-import path from "path";
-import fs from "fs";
-import { spawn } from "child_process";
 import findDefaultNetworkDevice from "../../algo/netInterfaceUtil";
 import WindivertAdapter from "./windivert-adapter";
 import { Lock } from "./dataManager";
@@ -15,57 +12,16 @@ const decoders = cap.decoders;
 const PROTOCOL = decoders.PROTOCOL;
 const Cap = cap.Cap;
 
-const NPCAP_INSTALLER_PATH = path.join(__dirname,"..","..","Dist","npcap-1.83.exe");
-
-async function checkAndInstallNpcap(logger: Logger) {
+async function checkNpcap(logger: Logger) {
     try {
         const devices = Cap.deviceList();
-        if (
-            !devices ||
-            devices.length === 0 ||
-            devices.every((d) => d.name.includes("Loopback"))
-        ) {
+        if ( !devices || devices.length === 0 || devices.every((d) => d.name.includes("Loopback")) ) {
             throw new Error("Npcap not detected or not functional.");
         }
         logger.info("Npcap detected and functional.");
         return true;
     } catch (e: Error | any) {
-        logger.warn(`Npcap not detected or not functional: ${e.message}`);
-        logger.info("Attempting to install Npcap...");
-
-        if (!fs.existsSync(NPCAP_INSTALLER_PATH)) {
-            logger.error(
-                `Npcap installer not found at: ${NPCAP_INSTALLER_PATH}`,
-            );
-            logger.info(
-                "Please install Npcap manually from the Dist/ folder and restart the application.",
-            );
-            return false;
-        }
-
-        try {
-            logger.info(
-                "Running Npcap installer. Please follow the on-screen instructions.",
-            );
-            const npcapProcess = spawn(NPCAP_INSTALLER_PATH, [], {
-                detached: true,
-                stdio: "ignore",
-            });
-            npcapProcess.unref();
-
-            logger.info(
-                "Npcap installer launched. Please install Npcap and then restart this application.",
-            );
-            return false;
-        } catch (spawnError: any) {
-            logger.error(
-                `Error running Npcap installer: ${spawnError.message}`,
-            );
-            logger.info(
-                "Please install Npcap manually from the Dist/ folder and restart the application.",
-            );
-            return false;
-        }
+        logger.warn("Npcap check failed: " + (e?.message || e));
     }
 }
 
@@ -235,7 +191,7 @@ class Sniffer {
     }
 
     async processEthPacket(frameBuffer: Buffer) {
-        if (this.isPaused) return; // No procesar paquetes si está pausado
+        if (this.isPaused) return;
 
         var ethPacket = decoders.Ethernet(frameBuffer);
 
@@ -296,14 +252,9 @@ class Sniffer {
                                             this.userDataManager.users.size !==
                                             0
                                         ) {
-                                            const lp =
-                                                this.globalSettings
-                                                    .lastPausedAt || 0;
-                                            const lr =
-                                                this.globalSettings
-                                                    .lastResumedAt || 0;
-                                            const wasPausedThenResumed =
-                                                lp > 0 && lr > lp;
+                                            const lp = this.globalSettings.lastPausedAt || 0;
+                                            const lr = this.globalSettings.lastResumedAt || 0;
+                                            const wasPausedThenResumed = lp > 0 && lr > lp;
                                             if (!wasPausedThenResumed) {
                                                 this.userDataManager.clearAll();
                                                 console.log(
@@ -316,10 +267,8 @@ class Sniffer {
                                             }
 
                                             try {
-                                                this.globalSettings.lastPausedAt =
-                                                    null;
-                                                this.globalSettings.lastResumedAt =
-                                                    null;
+                                                this.globalSettings.lastPausedAt = null;
+                                                this.globalSettings.lastResumedAt = null;
                                             } catch (e) { }
                                         }
                                         console.log(
@@ -358,12 +307,9 @@ class Sniffer {
                                     this.userDataManager.lastLogTime !== 0 &&
                                     this.userDataManager.users.size !== 0
                                 ) {
-                                    const lp =
-                                        this.globalSettings.lastPausedAt || 0;
-                                    const lr =
-                                        this.globalSettings.lastResumedAt || 0;
-                                    const wasPausedThenResumed =
-                                        lp > 0 && lr > lp;
+                                    const lp = this.globalSettings.lastPausedAt || 0;
+                                    const lr = this.globalSettings.lastResumedAt || 0;
+                                    const wasPausedThenResumed = lp > 0 && lr > lp;
                                     if (!wasPausedThenResumed) {
                                         this.userDataManager.clearAll();
                                         console.log(
@@ -491,7 +437,7 @@ class Sniffer {
 
         // Only explicit choices supported: npcap or windivert. No automatic fallback.
         if (selectedBackend === "npcap") {
-            const npcapReady = await checkAndInstallNpcap(this.logger);
+            const npcapReady = await checkNpcap(this.logger);
             if (!npcapReady) {
                 throw new Error("Npcap not ready; configured to use npcap.");
             }
