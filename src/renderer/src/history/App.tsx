@@ -35,7 +35,7 @@ export function HistoryApp(): React.JSX.Element {
 
     const { translateSkill, translateProfession, t } = useTranslations();
 
-    const { scale, isDragging, zoomIn, zoomOut, handleDragStart, handleClose } =
+    const { scale, zoomIn, zoomOut, handleDragStart, handleClose } =
         useWindowControls({
             baseWidth: 1125,
             baseHeight: 875,
@@ -79,7 +79,7 @@ export function HistoryApp(): React.JSX.Element {
         let debounceTimer: number | null = null;
 
         const resizeIfNeeded = (width: number, height: number) => {
-            window.electronAPI.resizeWindowToContent("history", width, height);
+            window.electronAPI.resizeWindowToContent("history", width, height, scale);
         };
 
         const observer = new ResizeObserver((entries) => {

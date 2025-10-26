@@ -21,22 +21,22 @@ export class HeaderReader {
         if ((typeof Buffer !== 'undefined' && Buffer && !Buffer.isBuffer(packetBuffer)) && !(packetBuffer instanceof Uint8Array)) {
             throw new TypeError('packetBuffer must be a Buffer or Uint8Array');
         }
-        this.packetBuffer = packetBuffer as Buffer | Uint8Array;
-        const buf = (this.packetBuffer as any).buffer as ArrayBuffer;
-        const byteOffset = (this.packetBuffer as any).byteOffset || 0;
-        const byteLength = (this.packetBuffer as any).byteLength || (this.packetBuffer as any).length;
+        this.packetBuffer = packetBuffer;
+        const buf = this.packetBuffer.buffer;
+        const byteOffset = this.packetBuffer.byteOffset || 0;
+        const byteLength = this.packetBuffer.byteLength || this.packetBuffer.length;
         this.packetDataView = new DataView(buf, byteOffset, byteLength);
         this.packetLength = byteLength;
     }
 
     setAddressBuffer(addressBuffer: Buffer | Uint8Array) {
         if (!Buffer.isBuffer(addressBuffer) && !(addressBuffer instanceof Uint8Array)) {
-            throw new TypeError('packetBuffer must be a Buffer or Uint8Array');
+            throw new TypeError('addressBuffer must be a Buffer or Uint8Array');
         }
-        this.addressBuffer = addressBuffer as Buffer | Uint8Array;
-        const buf = (this.addressBuffer as any).buffer as ArrayBuffer;
-        const byteOffset = (this.addressBuffer as any).byteOffset || 0;
-        const byteLength = (this.addressBuffer as any).byteLength || (this.addressBuffer as any).length;
+        this.addressBuffer = addressBuffer;
+        const buf = this.addressBuffer.buffer;
+        const byteOffset = this.addressBuffer.byteOffset || 0;
+        const byteLength = this.addressBuffer.byteLength || this.addressBuffer.length;
         this.addressDataView = new DataView(buf, byteOffset, byteLength);
     }
 

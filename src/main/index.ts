@@ -5,106 +5,93 @@ import { electronApp, is } from "@electron-toolkit/utils";
 import net from "net";
 import fs from "fs";
 
-function logToFile(msg: string): void {
-    try {
-        const userData = is.dev ? process.cwd() : app.getPath("userData");
-        const logPath = path.join(userData, "information_log.txt");
-        const timestamp = new Date().toISOString();
-        fs.mkdirSync(userData, { recursive: true });
-        fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
-        console.log(msg);
-    } catch (e) {
-        console.error("Error writing log:", e);
-        console.log(msg);
-        try {
-            const timestamp = new Date().toISOString();
-            fs.appendFileSync("./information_log.txt", `[${timestamp}] ${msg}\n`);
-        } catch (e2) {
-            console.error("Fallback log also failed:", e2);
-        }
-    }
-}
+/** 
+ * Constants and Globals
+ */
 
-let mainWindow: BrowserWindow | null;
-let groupWindow: BrowserWindow | null;
-let historyWindow: BrowserWindow | null;
-let deviceWindow: BrowserWindow | null;
-let serverProcess: ChildProcess | null;
-let server_port: number = 8989;
-let lastMainWindowSize = { width: 650, height: 700 };
-let lastGroupWindowSize = { width: 480, height: 530 };
-let lastHistoryWindowSize = { width: 800, height: 600 };
-let lastDeviceWindowSize = { width: 600, height: 400 };
+const WINDOW_CONFIGS = {
+    main: { defaultSize: { width: 650, height: 700 }, minSize: { width: 650, height: 700 }, resizable: false },
+    group: { defaultSize: { width: 480, height: 530 }, minSize: { width: 400, height: 450 }, resizable: true },
+    history: { defaultSize: { width: 800, height: 600 }, minSize: { width: 800, height: 600 }, resizable: true },
+    device: { defaultSize: { width: 600, height: 400 }, minSize: { width: 400, height: 300 }, resizable: true },
+    settings: { defaultSize: { width: 420, height: 520 }, minSize: { width: 360, height: 420 }, resizable: true }
+} as const;
+
+type WindowType = keyof typeof WINDOW_CONFIGS;
+type WindowSize = { width: number; height: number; scale?: number };
+
+const windows: Record<WindowType, BrowserWindow | null> = {
+    main: null, group: null, history: null, device: null, settings: null
+};
+
+const lastWindowSizes: Record<WindowType, WindowSize> = {
+    main: { width: 650, height: 700, scale: 1 },
+    group: { width: 480, height: 530, scale: 1 },
+    history: { width: 800, height: 600, scale: 1 },
+    device: { width: 600, height: 400, scale: 1 },
+    settings: { width: 420, height: 520, scale: 1 }
+};
+
+let serverProcess: ChildProcess | null = null;
+let serverPort: number = 8989;
 let isLocked: boolean = false;
-logToFile("==== ELECTRON START ====");
+const userDataPath = is.dev ? process.cwd() : app.getPath("userData");
+const settingsPath = path.join(userDataPath, "settings.json");
 
-// Helper functions for window size persistence
-function getSettingsPath(): string {
-    const userDataPath =
-        process.env.NODE_ENV === "development"
-            ? process.cwd()
-            : app.getPath("userData");
-    return path.join(userDataPath, "settings.json");
+/**
+ * Utilities
+ */
+
+function logToFile(msg: string): void {
+    const timestamp = new Date().toISOString();
+    const logPath = path.join(userDataPath, "information_log.txt");
+
+    try {
+        fs.mkdirSync(userDataPath, { recursive: true });
+        fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+    } catch (e) {
+        console.error("Log failed:", e);
+    }
+    console.log(msg);
 }
 
-async function loadWindowSizes(): Promise<{
-    main?: { width: number; height: number; scale?: number };
-    group?: { width: number; height: number };
-    history?: { width: number; height: number };
-    device?: { width: number; height: number };
-}> {
+async function loadWindowSizes(): Promise<Record<WindowType, WindowSize>> {
     try {
-        const settingsPath = getSettingsPath();
         const data = await fs.promises.readFile(settingsPath, "utf8");
         const settings = JSON.parse(data);
-        return settings.windowSizes || {};
-    } catch (error) {
+
+        if (settings.windowSizes) {
+            Object.entries(settings.windowSizes).forEach(([type, size]) => {
+                if (type in lastWindowSizes) {
+                    lastWindowSizes[type as WindowType] = size as WindowSize;
+                }
+            });
+            return settings.windowSizes;
+        }
+    } catch {
         logToFile("No saved window sizes found, using defaults");
-        return {};
     }
 }
 
-async function saveWindowSize(
-    windowType: "main" | "group" | "history" | "device",
-    width: number,
-    height: number,
-    scale?: number,
-): Promise<void> {
+async function saveWindowSize(windowType: WindowType, width: number, height: number, scale?: number): Promise<void> {
     try {
-        const settingsPath = getSettingsPath();
-        let settings: any = {};
+        lastWindowSizes[windowType] = { width, height, ...(scale && { scale }) };
 
+        let settings: any = {};
         try {
             const data = await fs.promises.readFile(settingsPath, "utf8");
             settings = JSON.parse(data);
-        } catch (error) {
-            logToFile("Creating new settings file");
-        }
+        } catch { }
 
-        if (!settings.windowSizes) {
-            settings.windowSizes = {};
-        }
-
-        settings.windowSizes[windowType] = { width, height };
-        if (scale !== undefined) {
-            settings.windowSizes[windowType].scale = scale;
-        }
-
-        await fs.promises.writeFile(
-            settingsPath,
-            JSON.stringify(settings, null, 4),
-            "utf8",
-        );
-        logToFile(
-            `Saved ${windowType} window size: ${width}x${height}${scale ? ` (scale: ${scale})` : ""}`,
-        );
+        settings.windowSizes = { ...settings.windowSizes, [windowType]: lastWindowSizes[windowType] };
+        await fs.promises.writeFile(settingsPath, JSON.stringify(settings, null, 4));
+        logToFile(`Saved ${windowType} window: ${width}x${height}${scale ? ` (scale: ${scale})` : ""}`);
     } catch (error) {
         logToFile(`Error saving window size: ${error}`);
     }
 }
 
-// Function to check if a port is in use
-const checkPort = (port: number): Promise<boolean> => {
+function checkPort(port: number): Promise<boolean> {
     return new Promise((resolve) => {
         const server = net.createServer();
         server.once("error", () => resolve(false));
@@ -113,61 +100,32 @@ const checkPort = (port: number): Promise<boolean> => {
         });
         server.listen(port);
     });
-};
-
-async function findAvailablePort(): Promise<number> {
-    let port = 8989;
-    logToFile("Searching for available port starting from: " + port);
-    while (true) {
-        logToFile("Checking port availability: " + port);
-        if (await checkPort(port)) {
-            logToFile("Port " + port + " is available");
-            return port;
-        }
-        logToFile("Port " + port + " is in use, trying next...");
-        port++;
-        if (port > 9000) {
-            logToFile("ERROR: No available port found up to 9000");
-            throw new Error("No available ports");
-        }
-    }
 }
 
-// Function to kill process using a specific port
+async function findAvailablePort(startPort: number = 8989, maxPort: number = 9000): Promise<number> {
+    for (let port = startPort; port <= maxPort; port++) {
+        if (await checkPort(port)) {
+            logToFile(`Port ${port} is available`);
+            return port;
+        }
+        logToFile(`Port ${port} is in use, trying next...`);
+    }
+    throw new Error("No available ports found");
+}
+
 async function killProcessUsingPort(port: number): Promise<void> {
     return new Promise((resolve) => {
-        exec(`netstat -ano | findstr :${port}`, (error, stdout, stderr) => {
-            if (stdout) {
-                const lines = stdout
-                    .split("\n")
-                    .filter((line) => line.includes("LISTENING"));
-                if (lines.length > 0) {
-                    const pid = lines[0].trim().split(/\s+/).pop();
-                    if (pid) {
-                        console.log(
-                            `Killing process ${pid} using port ${port}...`,
-                        );
-                        exec(
-                            `taskkill /PID ${pid} /F`,
-                            (killError, killStdout, killStderr) => {
-                                if (killError) {
-                                    console.error(
-                                        `Error killing process ${pid}: ${killError.message}`,
-                                    );
-                                } else {
-                                    console.log(
-                                        `Process ${pid} killed successfully.`,
-                                    );
-                                }
-                                resolve();
-                            },
-                        );
-                    } else {
-                        resolve();
-                    }
-                } else {
+        exec(`netstat -ano | findstr :${port}`, (error, stdout) => {
+            if (!stdout) return resolve();
+
+            const lines = stdout.split("\n").filter(line => line.includes("LISTENING"));
+            const pid = lines[0]?.trim().split(/\s+/).pop();
+
+            if (pid) {
+                exec(`taskkill /PID ${pid} /F`, (killError) => {
+                    if (!killError) logToFile(`Process ${pid} killed successfully`);
                     resolve();
-                }
+                });
             } else {
                 resolve();
             }
@@ -175,600 +133,274 @@ async function killProcessUsingPort(port: number): Promise<void> {
     });
 }
 
-async function createWindow(): Promise<void> {
-    logToFile("=== STARTING CREATEWINDOW ===");
-    logToFile("Node.js process: " + process.version);
-    logToFile("Electron version: " + process.versions.electron);
-    logToFile("Current directory: " + __dirname);
+/**
+ * Window Management
+ */
 
-    logToFile("Attempting to kill processes on port 8989...");
-    await killProcessUsingPort(8989);
+function createWindowConfig(windowType: WindowType, savedSizes: Record<WindowType, WindowSize>) {
+    const config = WINDOW_CONFIGS[windowType];
+    const size = savedSizes[windowType] || lastWindowSizes[windowType] || config.defaultSize;
 
-    server_port = await findAvailablePort();
-    logToFile("Available port found: " + server_port);
-
-    // Load saved window sizes
-    const savedSizes = await loadWindowSizes();
-    const mainSize = savedSizes.main || { width: 650, height: 700 };
-
-    mainWindow = new BrowserWindow({
-        width: mainSize.width,
-        height: mainSize.height,
+    return {
+        width: size.width,
+        height: size.height,
+        minWidth: config.minSize.width,
+        minHeight: config.minSize.height,
         transparent: true,
         frame: false,
         alwaysOnTop: true,
-        resizable: false,
-        useContentSize: false,
+        resizable: config.resizable,
+        skipTaskbar: windowType !== "main",
+        show: windowType === "main",
+        useContentSize: true,
         webPreferences: {
             preload: path.join(__dirname, "../../out/preload/index.cjs"),
             nodeIntegration: true,
             contextIsolation: true,
         },
         icon: path.join(__dirname, "../../icon.ico"),
-    });
-
-    mainWindow.setAlwaysOnTop(true, "screen-saver");
-    mainWindow.setIgnoreMouseEvents(false, { forward: true });
-
-    // Determine absolute path to server.js based on environment
-    const serverPath = path.join(__dirname, "../../out/main/server.js");
-
-    // Get user data path for storing settings and logs
-    const userDataPath = app.getPath("userData");
-    logToFile("User data path: " + userDataPath);
-    logToFile(
-        "Launching server.js on port " +
-        server_port +
-        " with path: " +
-        serverPath,
-    );
-
-    serverProcess = fork(serverPath, [server_port.toString()], {
-        stdio: ["pipe", "pipe", "pipe", "ipc"],
-        execArgv: [],
-        env: {
-            ...process.env,
-            resourcesPath: process.resourcesPath,
-            USER_DATA_PATH: userDataPath,
-        },
-    });
-
-    // Variables to control server startup
-    let serverLoaded = false;
-    const serverTimeout = setTimeout(() => {
-        if (!serverLoaded && mainWindow) {
-            logToFile("ERROR: Server did not respond in time (10s timeout)");
-            mainWindow.loadURL(
-                `data:text/html,<h2 style="color:red">Error: Server did not respond in time.<br>Check ${userDataPath}/information_log.txt for details.</h2>`,
-            );
-        }
-    }, 10000);
-
-    serverProcess.stdout?.on("data", (data: Buffer) => {
-        logToFile("SERVER STDOUT: " + data.toString().trim());
-        const match = data
-            .toString()
-            .match(/Web server started at (http:\/\/localhost:\d+)/);
-        if (match && match[1] && mainWindow) {
-            const serverUrl = match[1];
-            logToFile(
-                `Server started successfully. Loading URL: ${is.dev ? process.env["ELECTRON_RENDERER_URL"] : `${serverUrl}/index.html`}`,
-            );
-
-            if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-                mainWindow.loadURL(
-                    process.env["ELECTRON_RENDERER_URL"] + "/index.html",
-                );
-            } else {
-                mainWindow.loadURL(`${serverUrl}/index.html`);
-            }
-
-            serverLoaded = true;
-            clearTimeout(serverTimeout);
-        }
-    });
-
-    serverProcess.stderr?.on("data", (data: Buffer) => {
-        logToFile("SERVER STDERR: " + data.toString().trim());
-    });
-
-    serverProcess.on("error", (error: Error) => {
-        logToFile("SERVER ERROR: " + error.message);
-        logToFile("ERROR STACK: " + error.stack);
-    });
-
-    serverProcess.on("close", (code: number | null) => {
-        logToFile("SERVER PROCESS CLOSED with code: " + code);
-    });
-
-    serverProcess.on("exit", (code: number | null, signal: string | null) => {
-        logToFile(
-            "SERVER PROCESS EXITED with code: " + code + ", signal: " + signal,
-        );
-    });
-
-    mainWindow.on("closed", () => {
-        // Close group window if it's open
-        if (groupWindow && !groupWindow.isDestroyed()) {
-            groupWindow.close();
-        }
-
-        if (historyWindow && !historyWindow.isDestroyed()) {
-            historyWindow.close();
-        }
-
-        if (deviceWindow && !deviceWindow.isDestroyed()) {
-            deviceWindow.close();
-        }
-
-        mainWindow = null;
-        if (serverProcess) {
-            serverProcess.kill("SIGTERM");
-            setTimeout(() => {
-                if (serverProcess && !serverProcess.killed) {
-                    serverProcess.kill("SIGKILL");
-                }
-            }, 5000);
-        }
-    });
-
-    mainWindow.on("show", () => {
-        if (mainWindow) {
-            mainWindow.webContents.send("window-shown");
-        }
-    });
-
-    mainWindow.on("focus", () => {
-        if (mainWindow) {
-            mainWindow.webContents.send("window-shown");
-        }
-    });
-
-    ipcMain.on("close-window", (event: IpcMainEvent) => {
-        const senderWindow = BrowserWindow.fromWebContents(event.sender);
-        if (senderWindow) {
-            senderWindow.close();
-        }
-    });
-
-    // Handle mouse events for interactive or click-through window - works for any window
-    ipcMain.on(
-        "set-ignore-mouse-events",
-        (
-            event: IpcMainEvent,
-            ignore: boolean,
-            options?: { forward: boolean },
-        ) => {
-            const senderWindow = BrowserWindow.fromWebContents(event.sender);
-            if (senderWindow) {
-                senderWindow.setIgnoreMouseEvents(ignore, options);
-            }
-        },
-    );
-
-    // Handle window position for manual dragging
-    ipcMain.handle(
-        "get-window-position",
-        (event: IpcMainInvokeEvent): { x: number; y: number } => {
-            const senderWindow = BrowserWindow.fromWebContents(event.sender);
-            if (senderWindow) {
-                const [x, y] = senderWindow.getPosition();
-                return { x, y };
-            }
-            return { x: 0, y: 0 };
-        },
-    );
-
-    // Handle lock state toggle
-    ipcMain.on("toggle-lock-state", () => {
-        if (mainWindow) {
-            isLocked = !isLocked;
-            mainWindow.setMovable(!isLocked);
-            mainWindow.webContents.send("lock-state-changed", isLocked);
-            console.log(`Lock: ${isLocked ? "Locked" : "Unlocked"}`);
-        }
-    });
-
-    // Send initial lock state to renderer once window is ready
-    mainWindow.webContents.on("did-finish-load", () => {
-        if (mainWindow) {
-            mainWindow.webContents.send("lock-state-changed", isLocked);
-        }
-    });
-
-    ipcMain.on(
-        "resize-window-to-content",
-        (
-            _event: IpcMainEvent,
-            windowType: "main" | "group" | "history",
-            width: number,
-            height: number,
-        ) => {
-            if (windowType === "group" && width && height) {
-                const targetWidth = Math.min(width, width);
-                const targetHeight = Math.min(height, height);
-                groupWindow.setContentSize(targetWidth, targetHeight, false);
-
-                setTimeout(() => {
-                    if (groupWindow) {
-                        const bounds = groupWindow.getBounds();
-                        lastGroupWindowSize = {
-                            width: bounds.width,
-                            height: bounds.height,
-                        };
-                    }
-                }, 10);
-            }
-
-            if (windowType === "history" && width && height) {
-                const targetWidth = Math.min(width, width);
-                const targetHeight = Math.min(height, height);
-                historyWindow.setContentSize(targetWidth, targetHeight, false);
-
-                setTimeout(() => {
-                    if (historyWindow) {
-                        const bounds = historyWindow.getBounds();
-                        lastHistoryWindowSize = {
-                            width: bounds.width,
-                            height: bounds.height,
-                        };
-                    }
-                }, 10);
-            }
-
-            if (windowType === "main" && width && height) {
-                const targetWidth = Math.min(width, width);
-                const targetHeight = Math.min(height, height);
-                mainWindow.setContentSize(targetWidth, targetHeight, false);
-
-                setTimeout(() => {
-                    if (mainWindow) {
-                        const bounds = mainWindow.getBounds();
-                        lastMainWindowSize = {
-                            width: bounds.width,
-                            height: bounds.height,
-                        };
-                    }
-                }, 10);
-            }
-        },
-    );
-
-    // Handle saving window size
-    ipcMain.on(
-        "save-window-size",
-        (
-            _event: IpcMainEvent,
-            windowType: "main" | "group" | "history",
-            width: number,
-            height: number,
-            scale?: number,
-        ) => {
-            saveWindowSize(windowType, width, height, scale);
-        },
-    );
-
-    // Handle getting saved window sizes
-    ipcMain.handle("get-saved-window-sizes", async () => {
-        return await loadWindowSizes();
-    });
-
-    // Handle opening group management window
-    ipcMain.on("open-group-window", async () => {
-        if (groupWindow) {
-            groupWindow.focus();
-            return;
-        }
-
-        // Load saved window sizes
-        const savedSizes = await loadWindowSizes();
-        const groupSize = savedSizes.group || { width: 480, height: 530 };
-
-        groupWindow = new BrowserWindow({
-            width: groupSize.width,
-            height: groupSize.height,
-            minWidth: 400,
-            minHeight: 450,
-            transparent: true,
-            frame: false,
-            alwaysOnTop: true,
-            resizable: true,
-            skipTaskbar: true,
-            show: false,
-            useContentSize: true,
-            webPreferences: {
-                preload: path.join(__dirname, "../../out/preload/index.cjs"),
-                nodeIntegration: true,
-                contextIsolation: true,
-            },
-            icon: path.join(__dirname, "../../icon.ico"),
-            title: "Group Management",
-        });
-
-        groupWindow.setAlwaysOnTop(true, "screen-saver");
-        groupWindow.setIgnoreMouseEvents(false);
-
-        groupWindow.once("ready-to-show", () => {
-            if (groupWindow) {
-                groupWindow.show();
-                logToFile("Group window ready and shown");
-            }
-        });
-
-        if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-            groupWindow.loadURL(
-                process.env["ELECTRON_RENDERER_URL"] + "/group.html",
-            );
-        } else {
-            groupWindow.loadURL(`http://localhost:${server_port}/group.html`);
-        }
-
-        groupWindow.on("closed", () => {
-            groupWindow = null;
-        });
-
-        groupWindow.on("show", () => {
-            if (groupWindow) {
-                groupWindow.webContents.send("window-shown");
-            }
-        });
-
-        groupWindow.on("focus", () => {
-            if (groupWindow) {
-                groupWindow.webContents.send("window-shown");
-            }
-        });
-
-        logToFile(
-            "Group management window opened from http://localhost:" +
-            server_port +
-            "/group.html",
-        );
-    });
-
-    // Open History Window handler
-    ipcMain.on("open-history-window", async () => {
-        if (historyWindow) {
-            historyWindow.focus();
-            return;
-        }
-
-        // Load saved window sizes
-        const savedSizes = await loadWindowSizes();
-        const historySize = savedSizes.history || { width: 1125, height: 875 };
-
-        historyWindow = new BrowserWindow({
-            width: historySize.width,
-            height: historySize.height,
-            minWidth: 800,
-            minHeight: 600,
-            transparent: true,
-            frame: false,
-            alwaysOnTop: true,
-            resizable: true,
-            skipTaskbar: true,
-            show: false,
-            useContentSize: true,
-            webPreferences: {
-                preload: path.join(__dirname, "../../out/preload/index.cjs"),
-                nodeIntegration: true,
-                contextIsolation: true,
-            },
-            icon: path.join(__dirname, "../../icon.ico"),
-            title: "Combat History",
-        });
-
-        historyWindow.setAlwaysOnTop(true, "screen-saver");
-        historyWindow.setIgnoreMouseEvents(false);
-
-        historyWindow.once("ready-to-show", () => {
-            if (historyWindow) {
-                historyWindow.show();
-                logToFile("History window ready and shown");
-            }
-        });
-
-        historyWindow.on("show", () => {
-            if (historyWindow) {
-                historyWindow.webContents.send("window-shown");
-            }
-        });
-
-        historyWindow.on("focus", () => {
-            if (historyWindow) {
-                historyWindow.webContents.send("window-focused");
-            }
-        });
-
-        historyWindow.on("closed", () => {
-            historyWindow = null;
-        });
-
-        if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-            historyWindow.loadURL(
-                process.env["ELECTRON_RENDERER_URL"] + "/history.html",
-            );
-        } else {
-            historyWindow.loadURL(
-                `http://localhost:${server_port}/history.html`,
-            );
-        }
-
-        historyWindow.on("closed", () => {
-            historyWindow = null;
-        });
-
-        logToFile(
-            "History window opened from http://localhost:" +
-            server_port +
-            "/history.html",
-        );
-    });
-
-    // Open Device Picker Window handler
-    ipcMain.on("open-device-window", async () => {
-        if (deviceWindow) {
-            deviceWindow.focus();
-            return;
-        }
-
-        const savedSizes = await loadWindowSizes();
-        const deviceSize = savedSizes.device || { width: 600, height: 420 };
-
-        deviceWindow = new BrowserWindow({
-            width: deviceSize.width,
-            height: deviceSize.height,
-            minWidth: 400,
-            minHeight: 300,
-            transparent: true,
-            frame: false,
-            alwaysOnTop: true,
-            resizable: true,
-            skipTaskbar: true,
-            show: false,
-            useContentSize: true,
-            webPreferences: {
-                preload: path.join(__dirname, "../../out/preload/index.cjs"),
-                nodeIntegration: true,
-                contextIsolation: true,
-            },
-            icon: path.join(__dirname, "../../icon.ico"),
-            title: "Select Network Device",
-        });
-
-        deviceWindow.setAlwaysOnTop(true, "screen-saver");
-        deviceWindow.setIgnoreMouseEvents(false);
-
-        deviceWindow.once("ready-to-show", () => {
-            if (deviceWindow) {
-                deviceWindow.show();
-                logToFile("Device window ready and shown");
-            }
-        });
-
-        deviceWindow.on("show", () => {
-            if (deviceWindow) {
-                deviceWindow.webContents.send("window-shown");
-            }
-        });
-
-        deviceWindow.on("focus", () => {
-            if (deviceWindow) {
-                deviceWindow.webContents.send("window-focused");
-            }
-        });
-
-        deviceWindow.on("closed", () => {
-            deviceWindow = null;
-        });
-
-        if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
-            deviceWindow.loadURL(
-                process.env["ELECTRON_RENDERER_URL"] + "/device.html",
-            );
-        } else {
-            deviceWindow.loadURL(`http://localhost:${server_port}/device.html`);
-        }
-
-        logToFile("Device picker window opened");
-    });
-
-    ipcMain.on(
-        "set-window-position",
-        (event: IpcMainEvent, x: number, y: number) => {
-            const senderWindow = BrowserWindow.fromWebContents(event.sender);
-
-            if (senderWindow) {
-                let windowWidth = 0;
-                let windowHeight = 0;
-
-                if (senderWindow === groupWindow) {
-                    windowWidth = lastGroupWindowSize.width;
-                    windowHeight = lastGroupWindowSize.height;
-                } else if (senderWindow === historyWindow) {
-                    windowWidth = lastHistoryWindowSize.width;
-                    windowHeight = lastHistoryWindowSize.height;
-                } else if (senderWindow === deviceWindow) {
-                    windowWidth = lastDeviceWindowSize.width;
-                    windowHeight = lastDeviceWindowSize.height;
-                } else if (senderWindow === mainWindow) {
-                    windowWidth = lastMainWindowSize.width;
-                    windowHeight = lastMainWindowSize.height;
-                } else {
-                    const bounds = senderWindow.getBounds();
-                    windowWidth = bounds.width;
-                    windowHeight = bounds.height;
-                }
-
-                try {
-                    const displays = screen.getAllDisplays();
-                    if (displays && displays.length) {
-                        const minWorkX = Math.min(...displays.map((d) => d.workArea.x));
-                        const maxWorkX = Math.max(
-                            ...displays.map((d) => d.workArea.x + d.workArea.width),
-                        );
-                        const minWorkY = Math.min(...displays.map((d) => d.workArea.y));
-                        const maxWorkY = Math.max(
-                            ...displays.map((d) => d.workArea.y + d.workArea.height),
-                        );
-
-                        const clampedX = Math.min(
-                            Math.max(x, minWorkX),
-                            Math.max(minWorkX, maxWorkX - windowWidth),
-                        );
-                        const clampedY = Math.min(
-                            Math.max(y, minWorkY),
-                            Math.max(minWorkY, maxWorkY - windowHeight),
-                        );
-
-                        senderWindow.setBounds(
-                            {
-                                x: clampedX,
-                                y: clampedY,
-                                width: windowWidth,
-                                height: windowHeight,
-                            },
-                            false,
-                        );
-                    } else {
-                        senderWindow.setPosition(x, y);
-                    }
-                } catch (e) {
-                    senderWindow.setPosition(x, y);
-                }
-            }
-        },
-    );
+        title: windowType.charAt(0).toUpperCase() + windowType.slice(1)
+    };
 }
 
-app.whenReady()
-    .then(() => {
-        electronApp.setAppUserModelId("com.electron");
-        logToFile("Electron app ready, starting createWindow()");
+function setupWindowEvents(window: BrowserWindow, windowType: WindowType) {
+    window.setAlwaysOnTop(true, "screen-saver");
+    window.setIgnoreMouseEvents(false);
 
-        createWindow();
-
-        app.on("activate", () => {
-            logToFile("App activated");
-            if (BrowserWindow.getAllWindows().length === 0) {
-                logToFile("No windows found, creating new window");
-                createWindow();
-            }
-        });
-    })
-    .catch((error: Error) => {
-        logToFile("ERROR in app.whenReady(): " + error.message);
-        logToFile("ERROR STACK: " + error.stack);
+    window.once("ready-to-show", () => {
+        if (windowType !== "main") window.show();
+        logToFile(`${windowType} window ready and shown`);
     });
 
-app.on("window-all-closed", () => {
-    logToFile("All windows closed");
-    if (process.platform !== "darwin") {
-        logToFile("Closing application (not macOS)");
-        app.quit();
+    window.on("show", () => {
+        window.webContents.send("window-shown");
+    });
+
+    window.on("focus", () => {
+        window.webContents.send("window-focused");
+    });
+
+    window.on("closed", () => {
+        windows[windowType] = null;
+    });
+}
+
+function loadWindowURL(window: BrowserWindow, page: string) {
+    const url = is.dev && process.env.ELECTRON_RENDERER_URL
+        ? `${process.env.ELECTRON_RENDERER_URL}/${page}.html`
+        : `http://localhost:${serverPort}/${page}.html`;
+
+    window.loadURL(url);
+    logToFile(`Loaded ${page} window from: ${url}`);
+}
+
+async function createOrFocusWindow(windowType: WindowType) {
+    if (windows[windowType]) {
+        windows[windowType].focus();
+        return;
     }
+
+    const savedSizes = await loadWindowSizes();
+    const windowConfig = createWindowConfig(windowType, savedSizes);
+
+    windows[windowType] = new BrowserWindow(windowConfig);
+    setupWindowEvents(windows[windowType]!, windowType);
+    loadWindowURL(windows[windowType]!, windowType);
+}
+
+/**
+ * IPC Handlers
+ */
+
+function setupIpcHandlers() {
+    ipcMain.on("close-window", (event: IpcMainEvent) => {
+        BrowserWindow.fromWebContents(event.sender)?.close();
+    });
+
+    ipcMain.on("set-ignore-mouse-events", (event: IpcMainEvent, ignore: boolean, options?: { forward: boolean }) => {
+        BrowserWindow.fromWebContents(event.sender)?.setIgnoreMouseEvents(ignore, options);
+    });
+
+    ipcMain.handle("get-window-position", (event: IpcMainInvokeEvent) => {
+        const [x, y] = BrowserWindow.fromWebContents(event.sender)?.getPosition() || [0, 0];
+        return { x, y };
+    });
+
+    ipcMain.on("toggle-lock-state", () => {
+        if (windows.main) {
+            isLocked = !isLocked;
+            windows.main.setMovable(!isLocked);
+            windows.main.webContents.send("lock-state-changed", isLocked);
+        }
+    });
+
+    ipcMain.on("resize-window-to-content", (event: IpcMainEvent, windowType: WindowType, width: number, height: number, scale: number) => {
+        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        if (!senderWindow) return;
+
+        const targetWidth = Math.min(width, width);
+        const targetHeight = Math.min(height, height);
+        senderWindow.setContentSize(targetWidth, targetHeight, false);
+        senderWindow.setBounds({ width: targetWidth, height: targetHeight }, false);
+
+        setTimeout(() => {
+            const bounds = senderWindow.getBounds();
+            if (windowType in lastWindowSizes) {
+                lastWindowSizes[windowType] = { width: bounds.width, height: bounds.height, scale };
+            }
+        }, 10);
+    });
+
+    ipcMain.on("save-window-size", (_event: IpcMainEvent, windowType: WindowType, width: number, height: number, scale?: number) => {
+        saveWindowSize(windowType, width, height, scale);
+    });
+
+    ipcMain.handle("get-saved-window-sizes", loadWindowSizes);
+
+    ipcMain.on("open-group-window", () => createOrFocusWindow("group"));
+    ipcMain.on("open-history-window", () => createOrFocusWindow("history"));
+    ipcMain.on("open-device-window", () => createOrFocusWindow("device"));
+    ipcMain.on("open-settings-window", () => createOrFocusWindow("settings"));
+
+    ipcMain.on("update-visible-columns", (_event: IpcMainEvent, cols: Record<string, boolean>) => {
+        if (windows.main && !windows.main.isDestroyed()) {
+            windows.main.webContents.send("visible-columns-updated", cols);
+        }
+    });
+
+    ipcMain.on("set-window-position", (event: IpcMainEvent, x: number, y: number) => {
+        const senderWindow = BrowserWindow.fromWebContents(event.sender);
+        if (!senderWindow) return;
+
+        let windowType: WindowType | null = null;
+        for (const [type, win] of Object.entries(windows)) {
+            if (win === senderWindow) {
+                windowType = type as WindowType;
+                break;
+            }
+        }
+
+        const bounds = senderWindow.getBounds();
+        const windowWidth = windowType ? lastWindowSizes[windowType].width : bounds.width;
+        const windowHeight = windowType ? lastWindowSizes[windowType].height : bounds.height;
+
+        const displays = screen.getAllDisplays();
+
+        if (displays.length > 0) {
+            const minX = Math.min(...displays.map(d => d.workArea.x));
+            const maxX = Math.max(...displays.map(d => d.workArea.x + d.workArea.width)) - windowWidth;
+            const minY = Math.min(...displays.map(d => d.workArea.y));
+            const maxY = Math.max(...displays.map(d => d.workArea.y + d.workArea.height)) - windowHeight;
+
+            const clampedX = Math.max(minX, Math.min(x, maxX));
+            const clampedY = Math.max(minY, Math.min(y, maxY));
+
+            senderWindow.setBounds({
+                x: clampedX,
+                y: clampedY,
+                width: windowWidth,
+                height: windowHeight
+            }, false);
+        } else {
+            senderWindow.setPosition(x, y);
+        }
+    });
+}
+
+/**
+ *  Server Management
+ */
+
+function startServer(): Promise<void> {
+    return new Promise((resolve, reject) => {
+        const serverPath = path.join(__dirname, "../../out/main/server.js");
+        logToFile(`Launching server on port ${serverPort} from: ${serverPath}`);
+
+        serverProcess = fork(serverPath, [serverPort.toString()], {
+            stdio: ["pipe", "pipe", "pipe", "ipc"],
+            env: { ...process.env, resourcesPath: process.resourcesPath, USER_DATA_PATH: userDataPath }
+        });
+
+        const timeout = setTimeout(() => {
+            reject(new Error("Server did not respond in time (10s timeout)"));
+        }, 10000);
+
+        serverProcess.stdout?.on("data", (data: Buffer) => {
+            const output = data.toString().trim();
+            logToFile(`SERVER: ${output}`);
+
+            const match = output.match(/Web server started at (http:\/\/localhost:\d+)/);
+            if (match && windows.main) {
+                clearTimeout(timeout);
+                loadWindowURL(windows.main, "index");
+                resolve();
+            }
+        });
+
+        serverProcess.stderr?.on("data", (data: Buffer) => {
+            logToFile(`SERVER ERROR: ${data.toString().trim()}`);
+        });
+
+        serverProcess.on("error", reject);
+    });
+}
+
+/**
+ * Main Application
+ */
+
+async function createMainWindow(): Promise<void> {
+    logToFile("=== STARTING APPLICATION ===");
+
+    await killProcessUsingPort(8989);
+    serverPort = await findAvailablePort();
+
+    await loadWindowSizes();
+
+    windows.main = new BrowserWindow(createWindowConfig("main", lastWindowSizes));
+    setupWindowEvents(windows.main, "main");
+
+    windows.main.webContents.on("did-finish-load", () => {
+        windows.main.webContents.send("lock-state-changed", isLocked);
+    });
+
+    windows.main.on("closed", () => {
+        Object.values(windows).forEach(win => win?.close());
+        if (serverProcess) {
+            serverProcess.kill("SIGTERM");
+            setTimeout(() => serverProcess?.kill("SIGKILL"), 5000);
+        }
+    });
+
+    setupIpcHandlers();
+
+    try {
+        await startServer();
+    } catch (error) {
+        logToFile(`Server startup failed: ${error}`);
+        if (windows.main) {
+            windows.main.loadURL(`data:text/html,<h2 style="color:red">Error: ${error}</h2>`);
+        }
+    }
+}
+
+/**
+ * App Lifecycle
+ */
+
+app.whenReady().then(() => {
+    electronApp.setAppUserModelId("com.electron");
+    createMainWindow();
+
+    app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+    });
+});
+
+app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
 });
 
 app.on("before-quit", () => {
-    logToFile("App closing, cleaning up processes...");
+    logToFile("App closing, cleaning up...");
 });

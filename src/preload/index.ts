@@ -16,10 +16,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
         windowType: string,
         width: number,
         height: number,
-    ) => ipcRenderer.send("resize-window-to-content", windowType, width, height),
+        scale: number,
+    ) => ipcRenderer.send("resize-window-to-content", windowType, width, height, scale),
     openGroupWindow: () => ipcRenderer.send("open-group-window"),
     openHistoryWindow: () => ipcRenderer.send("open-history-window"),
     openDeviceWindow: () => ipcRenderer.send("open-device-window"),
+    openSettingsWindow: () => ipcRenderer.send("open-settings-window"),
     onWindowShown: (callback: () => void) => ipcRenderer.on("window-shown", () => callback()),
     saveWindowSize: (
         windowType: string,
@@ -28,6 +30,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
         scale?: number,
     ) => ipcRenderer.send("save-window-size", windowType, width, height, scale),
     getSavedWindowSizes: () => ipcRenderer.invoke("get-saved-window-sizes"),
+    updateVisibleColumns: (cols: Record<string, boolean>) => ipcRenderer.send("update-visible-columns", cols),
+    onVisibleColumnsChanged: (callback: (cols: Record<string, boolean>) => void) => ipcRenderer.on("visible-columns-updated", (_e: IpcRendererEvent, cols: Record<string, boolean>) => callback(cols)),
 });
 
 window.addEventListener("DOMContentLoaded", () => {

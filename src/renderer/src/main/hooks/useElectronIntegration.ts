@@ -39,7 +39,6 @@ export function useElectronIntegration(
         startWindowY: number;
     } | null>(null);
 
-    // Load saved scale on mount
     useEffect(() => {
         const loadSavedScale = async () => {
             if (!window.electronAPI) return;
@@ -68,26 +67,22 @@ export function useElectronIntegration(
     useEffect(() => {
         if (!window.electronAPI) return;
 
-        // Initialize with mouse events enabled
         window.electronAPI.setIgnoreMouseEvents(false);
         currentMouseEventsStateRef.current = false;
         console.log("Initial state: Mouse events ENABLED (UI is interactive)");
 
-        // Listen for lock state changes
         window.electronAPI.onLockStateChanged((locked: boolean) => {
             setIsLocked(locked);
             updateClickThroughState(locked, currentMouseEventsStateRef);
         });
     }, []);
 
-    // Toggle lock
     const toggleLock = useCallback(() => {
         if (window.electronAPI) {
             window.electronAPI.toggleLockState();
         }
     }, []);
 
-    // Zoom controls
     const applyScale = useCallback(
         (newScale: number) => {
             if (!window.electronAPI) return;
@@ -95,24 +90,21 @@ export function useElectronIntegration(
             const clampedScale = Math.max(0.6, Math.min(1.8, newScale));
             setScale(clampedScale);
 
-            // Update CSS variable
             document.documentElement.style.setProperty(
                 "--scale",
                 clampedScale.toString(),
             );
 
-            // Calculate scaled dimensions
             const scaledWidth = Math.floor(baseWidth * clampedScale);
             const scaledHeight = Math.floor(baseHeight * clampedScale);
 
-            // Resize window
             window.electronAPI.resizeWindowToContent(
                 "main",
                 scaledWidth,
                 scaledHeight,
+                clampedScale,
             );
 
-            // Save settings
             setTimeout(() => {
                 window.electronAPI.saveWindowSize(
                     "main",
@@ -222,8 +214,7 @@ export function useElectronIntegration(
                     ".add-to-registry-btn",
                 ];
                 shouldEnableEvents = essentialSelectors.some(
-                    (selector) =>
-                        (e.target as Element).closest(selector) !== null,
+                    (selector) => (e.target as Element).closest(selector) !== null,
                 );
             } else {
                 const allSelectors = [
@@ -270,8 +261,7 @@ export function useElectronIntegration(
                             ".modal",
                         ];
                         shouldKeepEvents = essentialSelectors.some(
-                            (selector) =>
-                                elementUnderMouse.closest(selector) !== null,
+                            (selector) => elementUnderMouse.closest(selector) !== null,
                         );
                     } else {
                         const allSelectors = [
@@ -282,8 +272,7 @@ export function useElectronIntegration(
                             ".modal",
                         ];
                         shouldKeepEvents = allSelectors.some(
-                            (selector) =>
-                                elementUnderMouse.closest(selector) !== null,
+                            (selector) => elementUnderMouse.closest(selector) !== null,
                         );
                     }
                 }

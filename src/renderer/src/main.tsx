@@ -4,6 +4,7 @@ import MainApp from "./main/App";
 import GroupApp from "./group/App";
 import HistoryApp from "./history/App";
 import DeviceApp from "./device/App";
+import SettingsApp from "./settings/App";
 import "/css/style.css";
 
 console.log("React entry point loaded");
@@ -12,14 +13,14 @@ console.log("React entry point loaded");
 const renderApp = () => {
     const path = window.location.pathname;
 
-    console.log("Current path:", path);
-
     if (path.includes("group.html")) {
         return <GroupApp />;
     } else if (path.includes("history.html")) {
         return <HistoryApp />;
     } else if (path.includes("device.html")) {
         return <DeviceApp />;
+    } else if (path.includes("settings.html")) {
+        return <SettingsApp />;
     } else {
         return <MainApp />;
     }

@@ -5,10 +5,12 @@
 /logs
 /logs_dps.json
 dist/logs/
+information_log.txt
 
 # Build output
 /dist
 /out
+settings.json
 player_registry.json
 
 # Vite cache

@@ -150,7 +150,6 @@ export interface SocketEvents {
     }) => void;
 }
 
-// Protobuf related types
 export interface Proto {
     [key: number]: any;
     _raw?: Buffer;
@@ -174,7 +173,6 @@ export interface MonsterNames {
     [monsterId: string]: string;
 }
 
-// Type guards
 export function isValidUid(uid: any): uid is string {
     return typeof uid === "string" && uid.length > 0;
 }

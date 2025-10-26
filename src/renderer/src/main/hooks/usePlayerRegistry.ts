@@ -48,7 +48,6 @@ export function usePlayerRegistry(): UsePlayerRegistryReturn {
                 return currentName;
             }
 
-            // Otherwise check registry
             if (playerRegistry[uid]) {
                 return playerRegistry[uid].name;
             }

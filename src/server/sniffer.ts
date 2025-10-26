@@ -527,7 +527,7 @@ class Sniffer {
             }
         }
 
-        if (num === undefined || !devices[num]) {
+        if (num === undefined || !devices[num as number]) {
             this.logger.error(
                 "Could not automatically detect a valid network interface.",
             );
@@ -540,7 +540,7 @@ class Sniffer {
             userDataManager: this.userDataManager,
         });
 
-        const device = devices[num].name;
+        const device = devices[num as number].name;
         const filter = "ip and tcp";
         const bufSize = 10 * 1024 * 1024;
         const buffer = Buffer.alloc(65535);
@@ -601,7 +601,6 @@ class Sniffer {
         }, 1000);
     }
 
-    // Stop the sniffer safely, closing the capture device and clearing timers/loops.
     async stop(): Promise<void> {
         try {
             this.running = false;
@@ -626,7 +625,6 @@ class Sniffer {
                 this.logger.warn("Error while clearing sniffer internal state:", e);
             }
 
-            // Clear the fragment cleanup interval
             if (this.#fragmentCleanerInterval) {
                 clearInterval(this.#fragmentCleanerInterval);
                 this.#fragmentCleanerInterval = null;

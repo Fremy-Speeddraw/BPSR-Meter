@@ -180,6 +180,7 @@ export function useWindowZoom(
             windowType,
             scaledWidth,
             scaledHeight,
+            clampedScale,
         );
 
         // Save settings

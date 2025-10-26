@@ -26,12 +26,10 @@ function PlayerBarComponent({
     t,
     visibleColumns,
 }: PlayerBarProps): React.JSX.Element {
-    // Parse profession
     const professionParts = (player.profession || "-").split("-");
     const mainProfessionKey = professionParts[0];
     const subProfessionKey = professionParts[1];
 
-    // Get profession info - prefer sub-profession for icon if available
     const prof = subProfessionKey
         ? getProfessionInfo(subProfessionKey)
         : getProfessionInfo(mainProfessionKey);

@@ -12,9 +12,8 @@ import Sniffer from "../../src/server/sniffer";
 import initializeApi from "../../src/server/api";
 import PacketProcessor from "../../algo/packet";
 
-const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
-const SETTINGS_PATH = path.join(USER_DATA_DIR, "settings.json");
-const PLAYER_REGISTRY_PATH = path.join(USER_DATA_DIR, "player_registry.json");
+const SETTINGS_PATH = path.join(process.env.USER_DATA_PATH, "settings.json");
+const PLAYER_REGISTRY_PATH = path.join(process.env.USER_DATA_PATH, "player_registry.json");
 
 const globalSettings: GlobalSettings = {
     availableLanguages: ["en", "zh"],

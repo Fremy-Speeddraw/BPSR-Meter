@@ -18,7 +18,6 @@ export const devError = (...args: any[]): void => {
     }
 };
 
-// Always log errors in production too
 export const prodError = (...args: any[]): void => {
     console.error(...args);
 };

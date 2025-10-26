@@ -1,9 +1,6 @@
-// Type definitions for cap v0.2.0
-// Project: https://github.com/mscdex/cap
-// Definitions by: TypeScript contributor
-
-/// <reference types="node" />
-
+/**
+ * Type definitions for the 'cap' Node.js module.
+ */
 declare module 'cap' {
     import { EventEmitter } from 'events';
 
@@ -34,7 +31,6 @@ declare module 'cap' {
         broadaddr?: string;
     }
 
-    // Link Layer Protocols
     export interface EthernetInfo {
         dstmac: string;
         srcmac: string;
@@ -52,7 +48,6 @@ declare module 'cap' {
         offset: number;
     }
 
-    // Internet Layer Protocols
     export interface IPv4Info {
         hdrlen: number;
         dscp: number;
@@ -393,16 +388,13 @@ declare module 'cap' {
             };
         };
 
-        // Link Layer Protocols
         Ethernet(buf: Buffer, bufOffset?: number): EthernetResult;
         ARP(buf: Buffer, bufOffset?: number): ARPResult;
 
-        // Internet Layer Protocols
         IPV4(buf: Buffer, bufOffset?: number): IPv4Result;
         IPV6(buf: Buffer, bufOffset?: number): IPv6Result;
         ICMPV4(buf: Buffer, nbytes: number, bufOffset?: number): ICMPv4Result;
 
-        // Transport Layer Protocols
         TCP(buf: Buffer, bufOffset?: number): TCPResult;
         UDP(buf: Buffer, bufOffset?: number): UDPResult;
         SCTP(buf: Buffer, nbytes: number, bufOffset?: number): SCTPResult;

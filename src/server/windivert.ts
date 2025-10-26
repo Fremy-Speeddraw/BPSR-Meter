@@ -132,7 +132,6 @@ export function addReceiveListener(handle: WinDivertHandle, callback: (packet: B
                     handle.HelperCalcChecksums({ packet: newPacket }, 0);
                     handle.send({ packet: newPacket, addr });
                 } catch (error) {
-                    // eslint-disable-next-line no-console
                     console.error('Recv Error:', error);
                 }
             } else if (newPacket === undefined) {
@@ -140,7 +139,6 @@ export function addReceiveListener(handle: WinDivertHandle, callback: (packet: B
             }
         });
     } catch (error) {
-        // eslint-disable-next-line no-console
         console.error(error);
     }
 }
@@ -189,11 +187,9 @@ export function decrementTTL(handle: WinDivertHandle, packetBuffer: Buffer) {
     return handle.HelperDecrementTTL(packetBuffer);
 }
 
-// Re-export decoders
 export const HeaderReader = DecodersHeaderReader;
 export const BYTESWAP16 = DecodersBYTESWAP16;
 
-// Raw native binding for advanced usage
 export const wd = windivert;
 
 export default {

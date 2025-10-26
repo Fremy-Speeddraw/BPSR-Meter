@@ -13,7 +13,6 @@ import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
 import { useTranslations } from "../main/hooks/useTranslations";
 
 export function GroupApp(): React.JSX.Element {
-    // Hooks
     const {
         groupState,
         toggleGroupEnabled,
@@ -27,10 +26,9 @@ export function GroupApp(): React.JSX.Element {
 
     const { t } = useTranslations();
 
-    const { availablePlayers, isLoading, refreshPlayers } =
-        useAvailablePlayers(playerRegistry);
+    const { availablePlayers } = useAvailablePlayers(playerRegistry);
 
-    const { scale, isDragging, zoomIn, zoomOut, handleDragStart, handleClose } =
+    const { scale, zoomIn, zoomOut, handleDragStart, handleClose } =
         useWindowControls({
             baseWidth: 480,
             baseHeight: 530,
@@ -96,7 +94,7 @@ export function GroupApp(): React.JSX.Element {
         let debounceTimer: number | null = null;
 
         const resizeIfNeeded = (width: number, height: number) => {
-            window.electronAPI.resizeWindowToContent("group", width, height);
+            window.electronAPI.resizeWindowToContent("group", width, height, scale);
         };
 
         const observer = new ResizeObserver((entries) => {
@@ -110,7 +108,7 @@ export function GroupApp(): React.JSX.Element {
             }, 80);
         });
 
-        const el = document.querySelector(".group-meter");
+        const el = document.querySelector(".group-window");
         if (el) observer.observe(el);
 
         return () => {
@@ -120,7 +118,7 @@ export function GroupApp(): React.JSX.Element {
     }, []);
 
     return (
-        <div className="group-meter">
+        <div className="group-window">
             <GroupHeader
                 onClose={handleClose}
                 onDragStart={handleDragStart}
@@ -129,7 +127,7 @@ export function GroupApp(): React.JSX.Element {
                 t={t}
             />
 
-            <div className="group-window">
+            <div className="group-container">
                 <GroupToggle
                     enabled={groupState.enabled}
                     memberCount={groupState.members.length}

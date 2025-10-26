@@ -3,8 +3,6 @@ import path from "path";
 import { readFileSync } from "fs";
 import type { Logger, GlobalSettings, SkillConfig } from "../types/index";
 
-// Use user data path in production, current directory in development
-const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
 const TRANSLATIONS_DIR = path.join(__dirname, "translations");
 const skillConfig: SkillConfig = JSON.parse(readFileSync(TRANSLATIONS_DIR + "/zh.json", "utf-8")).skills;
 
@@ -623,7 +621,7 @@ export class UserDataManager {
     async addLog(log: string): Promise<void> {
         if (!this.globalSettings.enableFightLog) return;
 
-        const logDir = path.join(USER_DATA_DIR, "logs", String(this.startTime));
+        const logDir = path.join(process.env.USER_DATA_PATH, "logs", String(this.startTime));
         const logFile = path.join(logDir, "fight.log");
         const timestamp = new Date().toISOString();
         const logEntry = `[${timestamp}] ${log}\n`;
@@ -750,7 +748,6 @@ export class UserDataManager {
     }
 
     async resetStatistics(): Promise<void> {
-        // Save current session before resetting
         if (this.users.size > 0 && this.globalSettings.enableHistorySave) {
             await this.saveAllUserData();
         }
@@ -761,8 +758,8 @@ export class UserDataManager {
             user.takenDamage = 0;
             user.deadCount = 0;
             user.skillUsage = new Map();
-            user.attr = {}; // Reset attributes (HP, max_HP, etc.)
-            user.fightPoint = 0; // Reset fight point
+            user.attr = {};
+            user.fightPoint = 0;
         }
         this.startTime = Date.now();
         this.logger.info("Statistics reset while keeping player information.");
@@ -782,7 +779,7 @@ export class UserDataManager {
             const endTime = Date.now();
             const users = usersToSave || this.users;
             const timestamp = startTime || this.startTime;
-            const logDir = path.join(USER_DATA_DIR, "logs", String(timestamp));
+            const logDir = path.join(process.env.USER_DATA_PATH, "logs", String(timestamp));
             const usersDir = path.join(logDir, "users");
             const summary = {
                 startTime: timestamp,

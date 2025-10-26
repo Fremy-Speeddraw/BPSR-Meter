@@ -1529,7 +1529,7 @@ body {
 }
 
 /* Group Window Styles */
-.group-meter {
+.group-window {
     width: 100%;
     height: 100%;
     background: var(--bg-dark);
@@ -1585,7 +1585,7 @@ body {
     letter-spacing: 0.5px;
 }
 
-.group-window {
+.group-container {
     padding: var(--gap-lg);
     background: var(--bg-darker);
     border-radius: var(--radius);
@@ -1597,7 +1597,7 @@ body {
     pointer-events: auto;
 }
 
-.group-window * {
+.group-container * {
     pointer-events: auto;
 }
 
@@ -1777,26 +1777,26 @@ body {
 /* Custom scrollbar */
 .group-members-list::-webkit-scrollbar,
 .available-players-list::-webkit-scrollbar,
-.group-window::-webkit-scrollbar {
+.group-container::-webkit-scrollbar {
     width: 6px;
 }
 
 .group-members-list::-webkit-scrollbar-track,
 .available-players-list::-webkit-scrollbar-track,
-.group-window::-webkit-scrollbar-track {
+.group-container::-webkit-scrollbar-track {
     background: transparent;
 }
 
 .group-members-list::-webkit-scrollbar-thumb,
 .available-players-list::-webkit-scrollbar-thumb,
-.group-window::-webkit-scrollbar-thumb {
+.group-container::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 3px;
 }
 
 .group-members-list::-webkit-scrollbar-thumb:hover,
 .available-players-list::-webkit-scrollbar-thumb:hover,
-.group-window::-webkit-scrollbar-thumb:hover {
+.group-container::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.15);
 }
 
@@ -2081,4 +2081,124 @@ body {
 
 .alert-success .alert-message {
     color: #10b981;
+}
+
+.settings-window {
+    width: 100vw;
+    max-width: 360px;
+    max-height: 520px;
+    display: flex;
+    background: var(--bg-dark);
+    padding: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-radius: var(--radius);
+    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-sm);
+    padding: var(--gap-xs);
+    background: var(--bg-darker);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    -webkit-app-region: no-drag;
+}
+
+.settings-container {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    pointer-events: auto;
+}
+
+.settings-container * {
+    pointer-events: auto;
+}
+
+.settings-columns {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: calc(100vh - 200px);
+    overflow: auto;
+    padding-right: 6px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.08s ease;
+    background: rgba(255,255,255,0.01);
+    border: 1px solid transparent;
+}
+
+.settings-row:hover {
+    background: rgba(74,158,255,0.04);
+    transform: translateX(2px);
+    border-color: rgba(74,158,255,0.06);
+}
+
+.settings-row input[type="checkbox"] {
+    /* hide native checkbox but keep accessible input */
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.settings-row .fake-checkbox {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+    display: inline-block;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.settings-row input[type="checkbox"]:checked + .fake-checkbox {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(74,158,255,0.12);
+}
+
+.settings-row input[type="checkbox"]:checked + .fake-checkbox::after {
+    content: "\2713";
+    display: block;
+    color: #fff;
+    font-size: 12px;
+    line-height: 18px;
+    text-align: center;
+}
+
+.settings-row .column-label {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.settings-root .control-button {
+    pointer-events: all;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+@media (max-width: 640px) {
+    .settings-root {
+        width: calc(100vw - 24px);
+        padding: 12px;
+    }
 }

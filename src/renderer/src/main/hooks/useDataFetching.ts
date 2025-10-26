@@ -163,6 +163,7 @@ export function useDataFetching(
     const fetchData = useCallback(async () => {
         try {
             if (viewMode === "skills") {
+                setPlayers([]);
                 const skillsRes = await fetch("/api/skills");
                 const skillsDataRes = await skillsRes.json();
 

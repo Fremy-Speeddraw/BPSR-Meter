@@ -10,9 +10,8 @@ import type { UserDataManager } from "./dataManager";
 import Sniffer from "./sniffer";
 
 // Use user data path in production, current directory in development
-const USER_DATA_DIR = process.env.NODE_ENV === "development" ? process.cwd() : process.env.USER_DATA_PATH;
-const SETTINGS_PATH = path.join(USER_DATA_DIR, "settings.json");
-const PLAYER_REGISTRY_PATH = path.join(USER_DATA_DIR, "player_registry.json");
+const SETTINGS_PATH = path.join(process.env.USER_DATA_PATH, "settings.json");
+const PLAYER_REGISTRY_PATH = path.join(process.env.USER_DATA_PATH, "player_registry.json");
 
 interface ErrorWithCode extends Error {
     code?: string;
@@ -65,22 +64,6 @@ function initializeApi(
         res.json(data);
     });
 
-    app.get("/api/debug/status", (req: Request, res: Response) => {
-        const allUsers = userDataManager.getAllUsersData();
-        const localUid = userDataManager.localPlayerUid;
-        const userCount = Object.keys(allUsers).length;
-
-        res.json({
-            code: 0,
-            localPlayerUid: localUid,
-            totalUsersTracked: userCount,
-            userIds: Object.keys(allUsers),
-            hasLocalPlayer: localUid
-                ? allUsers.hasOwnProperty(localUid)
-                : false,
-        });
-    });
-
     app.get("/api/enemies", (req: Request, res: Response) => {
         const enemiesData = userDataManager.getAllEnemiesData();
         const data: ApiResponse = {
@@ -121,7 +104,6 @@ function initializeApi(
             `Statistics ${globalSettings.isPaused ? "paused" : "resumed"}!`,
         );
 
-        // Persist settings so timestamps survive restarts
         (async () => {
             try {
                 await fsPromises.writeFile(
@@ -261,7 +243,7 @@ function initializeApi(
         async (req: Request, res: Response) => {
             const { timestamp } = req.params;
             const historyFilePath = path.join(
-                USER_DATA_DIR,
+                process.env.USER_DATA_PATH,
                 "logs",
                 timestamp,
                 "summary.json",
@@ -298,7 +280,7 @@ function initializeApi(
         async (req: Request, res: Response) => {
             const { timestamp } = req.params;
             const historyFilePath = path.join(
-                USER_DATA_DIR,
+                process.env.USER_DATA_PATH,
                 "logs",
                 timestamp,
                 "allUserData.json",
@@ -335,7 +317,7 @@ function initializeApi(
         async (req: Request, res: Response) => {
             const { timestamp, uid } = req.params;
             const historyFilePath = path.join(
-                USER_DATA_DIR,
+                process.env.USER_DATA_PATH,
                 "logs",
                 timestamp,
                 "users",
@@ -373,7 +355,7 @@ function initializeApi(
         async (req: Request, res: Response) => {
             const { timestamp } = req.params;
             const historyFilePath = path.join(
-                USER_DATA_DIR,
+                process.env.USER_DATA_PATH,
                 "logs",
                 timestamp,
                 "fight.log",
@@ -384,7 +366,7 @@ function initializeApi(
 
     app.get("/api/history/list", async (req: Request, res: Response) => {
         try {
-            const logsDir = path.join(USER_DATA_DIR, "logs");
+            const logsDir = path.join(process.env.USER_DATA_PATH, "logs");
             const data = (
                 await fsPromises.readdir(logsDir, { withFileTypes: true })
             )

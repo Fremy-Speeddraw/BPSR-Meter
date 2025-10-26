@@ -92,7 +92,7 @@ export interface ElectronAPI {
     setIgnoreMouseEvents: (ignore: boolean, options?: any) => void;
     getWindowPosition: () => Promise<[number, number]>;
     setWindowPosition: (x: number, y: number) => void;
-    resizeWindowToContent: (width: number, height: number) => void;
+    resizeWindowToContent: (width: number, height: number, scale: number) => void;
     openGroupWindow: () => void;
     openHistoryWindow: () => void;
     onWindowShown?: (callback: () => void) => void;

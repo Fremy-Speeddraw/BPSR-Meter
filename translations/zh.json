@@ -75,7 +75,8 @@
             "playerRegistry": "玩家数据库",
             "groupMembers": "小队成员",
             "groupManagement": "小队管理",
-            "availablePlayers": "可用玩家"
+            "availablePlayers": "可用玩家",
+            "settings": "设置"
         },
         "stats": {
             "dps": "DPS",
@@ -104,7 +105,7 @@
             "damage": "伤害",
             "healing": "治疗",
             "noData": "无技能数据",
-            "searchPlaceholder": "搜索技能...",
+            "searchPlaceholder": "按名称或用户ID搜索...",
             "noMatch": "没有匹配的玩家"
         },
         "states": {

@@ -75,7 +75,8 @@
             "playerRegistry": "Player Registry",
             "groupMembers": "Group Members",
             "groupManagement": "Group Management",
-            "availablePlayers": "Available Players"
+            "availablePlayers": "Available Players",
+            "settings": "Settings"
         },
         "stats": {
             "dps": "DPS",
@@ -104,7 +105,7 @@
             "damage": "DMG",
             "healing": "HEAL",
             "noData": "No skill data available",
-            "searchPlaceholder": "Search skills...",
+            "searchPlaceholder": "Search By Name or User Id ...",
             "noMatch": "No matching players"
         },
         "placeholders": {

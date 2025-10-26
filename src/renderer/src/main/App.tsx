@@ -46,6 +46,26 @@ export function MainApp(): React.JSX.Element {
         }
     }, []);
 
+    // Listen for updates from the Settings window (via main process relay)
+    useEffect(() => {
+        try {
+            if ((window as any).electronAPI && (window as any).electronAPI.onVisibleColumnsChanged) {
+                (window as any).electronAPI.onVisibleColumnsChanged((cols: Record<string, boolean>) => {
+                    if (cols && typeof cols === "object") {
+                        setVisibleColumns((prev) => ({ ...prev, ...cols }));
+                        try {
+                            localStorage.setItem("visibleColumns", JSON.stringify(cols));
+                        } catch (e) {
+                            console.warn("Failed to persist visibleColumns from IPC", e);
+                        }
+                    }
+                });
+            }
+        } catch (err) {
+            // ignore
+        }
+    }, []);
+
     // Hooks
     const {
         currentLanguage,
@@ -59,6 +79,7 @@ export function MainApp(): React.JSX.Element {
     const { manualGroupState } = useManualGroup();
 
     const {
+        scale,
         isLocked,
         toggleLock,
         zoomIn,
@@ -175,7 +196,7 @@ export function MainApp(): React.JSX.Element {
         let debounceTimer: number | null = null;
 
         const resizeIfNeeded = (width: number, height: number) => {
-            window.electronAPI.resizeWindowToContent("main", width, height);
+            window.electronAPI.resizeWindowToContent("main", width, height, scale);
         };
 
         const observer = new ResizeObserver((entries) => {

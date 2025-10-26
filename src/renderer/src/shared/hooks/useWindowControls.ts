@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 export interface UseWindowControlsOptions {
     baseWidth: number;
     baseHeight: number;
-    windowType: "main" | "group" | "history" | "device";
+    windowType: "main" | "group" | "history" | "device" | "settings";
 }
 
 export interface UseWindowControlsReturn {
@@ -30,7 +30,6 @@ export function useWindowControls(
         startWindowY: number;
     } | null>(null);
 
-    // Load saved scale on mount
     useEffect(() => {
         const loadSavedScale = async () => {
             if (!window.electronAPI) return;
@@ -61,7 +60,6 @@ export function useWindowControls(
         loadSavedScale();
     }, [windowType]);
 
-    // Apply scale to window
     const applyScale = useCallback(
         (newScale: number) => {
             if (!window.electronAPI) return;
@@ -69,24 +67,21 @@ export function useWindowControls(
             const clampedScale = Math.max(0.6, Math.min(1.8, newScale));
             setScale(clampedScale);
 
-            // Update CSS variable
             document.documentElement.style.setProperty(
                 "--scale",
                 clampedScale.toString(),
             );
 
-            // Calculate scaled dimensions
             const scaledWidth = Math.floor(baseWidth * clampedScale);
             const scaledHeight = Math.floor(baseHeight * clampedScale);
 
-            // Resize window
             window.electronAPI.resizeWindowToContent(
                 windowType,
                 scaledWidth,
                 scaledHeight,
+                clampedScale,
             );
 
-            // Save settings
             setTimeout(() => {
                 window.electronAPI.saveWindowSize(
                     windowType,
@@ -185,7 +180,7 @@ export function useWindowControls(
     // Handle window close
     const handleClose = useCallback(() => {
         if (window.electronAPI) {
-            window.close();
+            window.electronAPI.closeWindow();
         }
     }, []);
 

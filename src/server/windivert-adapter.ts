@@ -1,10 +1,5 @@
 import { type WinDivertHandle, createWindivert, addReceiveListener, LAYERS, FLAGS } from './windivert';
 
-/**
-* WindivertAdapter: minimal adapter to feed IP packets from WinDivert
-* into the existing eth_queue which expects Ethernet frames. We prepend
-* a synthetic 14-byte Ethernet header (EtherType 0x0800) so existing
-*/
 export default class WindivertAdapter {
     handle: WinDivertHandle | null;
     filter: string;

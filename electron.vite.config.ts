@@ -56,7 +56,8 @@ export default defineConfig({
                     index: path.resolve(__dirname, 'src/index.html'),
                     group: path.resolve(__dirname, 'src/group.html'),
                     history: path.resolve(__dirname, 'src/history.html'),
-                    device: path.resolve(__dirname, 'src/device.html')
+                    device: path.resolve(__dirname, 'src/device.html'),
+                    settings: path.resolve(__dirname, 'src/settings.html'),
                 }
             }
         },
