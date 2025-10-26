@@ -758,8 +758,6 @@ export class UserDataManager {
             user.takenDamage = 0;
             user.deadCount = 0;
             user.skillUsage = new Map();
-            user.attr = {};
-            user.fightPoint = 0;
         }
         this.startTime = Date.now();
         this.logger.info("Statistics reset while keeping player information.");
