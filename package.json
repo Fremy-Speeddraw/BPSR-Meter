@@ -1,6 +1,6 @@
 {
     "name": "bpsr-meter",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "description": "BPSR Meter",
     "author": "Fremy-Speeddraw",
     "type": "module",
@@ -40,6 +40,7 @@
         "react-dom": "^19.2.0",
         "rollup-plugin-copy": "^3.5.0",
         "socket.io": "^4.8.1",
+        "socket.io-client": "^4.8.1",
         "tailwindcss": "^4.1.15",
         "winston": "^3.17.0"
     },

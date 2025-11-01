@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import type { ApiResponse } from "../shared/types";
-import { t } from "../shared/utils/translations";
 import { translateForLang } from "../shared/utils/translations";
-import { useWindowControls } from "../shared/hooks";
+import { useTranslations } from "../shared/hooks/useTranslations";
+import { useWindowControls, useSocket } from "../shared/hooks";
 import MonstersHeader from "./MonstersHeader";
 import SortDropdown from "./SortDropdown";
 
@@ -10,6 +10,8 @@ interface MonsterEntry {
     name?: string | null;
     hp?: number | null;
     max_hp?: number | null;
+    monster_id?: number | null;
+    last_seen?: number | null;
 }
 
 export default function MonstersApp(): React.JSX.Element {
@@ -18,7 +20,6 @@ export default function MonstersApp(): React.JSX.Element {
     const [error, setError] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<"id" | "name" | "hp">("hp");
     const [sortDesc, setSortDesc] = useState<boolean>(true);
-    // local cache of Chinese translations for monster ids
     const [zhNames, setZhNames] = useState<Record<number, string>>({});
 
     const { scale, zoomIn, zoomOut, handleDragStart, handleClose } = useWindowControls({
@@ -27,72 +28,68 @@ export default function MonstersApp(): React.JSX.Element {
         windowType: "monsters",
     });
 
+    const { t } = useTranslations();
+    const { on } = useSocket();
+
     useEffect(() => {
         let mounted = true;
 
-        const fetchEnemies = async () => {
+        const unsubscribe = on("monsterData", (data: ApiResponse) => {
+            if (!mounted) return;
+
             try {
-                const resp = await fetch("/api/enemies");
-                const data: ApiResponse = await resp.json();
-                if (mounted) {
+                // @ts-ignore
+                if (data && data.enemy) {
                     // @ts-ignore
-                    if (data && data.enemy) {
-                        // @ts-ignore
-                        const incoming: Record<string, MonsterEntry> = data.enemy || {};
+                    const incoming: Record<string, MonsterEntry> = data.enemy || {};
 
-                        const filtered = Object.fromEntries(
-                            Object.entries(incoming).filter(([_id, entry]) => {
-                                if (!entry) return false;
-                                const hp = entry.hp;
-                                if (typeof hp !== "number") return true;
-                                // keep monsters even if hp === 0
-                                return hp >= 0;
-                            }),
-                        ) as Record<string, MonsterEntry>;
-                        setMonsters(filtered);
+                    const filtered = Object.fromEntries(
+                        Object.entries(incoming).filter(([_id, entry]) => {
+                            if (!entry) return false;
+                            const hp = entry.hp;
+                            if (typeof hp !== "number") return true;
+                            return hp >= 0;
+                        }),
+                    ) as Record<string, MonsterEntry>;
+                    setMonsters(filtered);
 
-                        // Prefetch Chinese translations for entries missing names
-                        (async () => {
-                            try {
-                                const missingIds = new Set<number>();
-                                for (const [id, entry] of Object.entries(filtered)) {
-                                    const mid = (entry as any).monster_id;
-                                    const hasName = entry && entry.name && entry.name !== "Unknown";
-                                    if (!hasName && mid) missingIds.add(Number(mid));
-                                }
-                                if (missingIds.size === 0) return;
-
-                                const newZh: Record<number, string> = {};
-                                for (const mid of missingIds) {
-                                    const key = `monsters.${mid}`;
-                                    const zh = await translateForLang("zh", key, null);
-                                    if (zh) newZh[mid] = zh;
-                                }
-                                if (Object.keys(newZh).length > 0) {
-                                    setZhNames((s) => ({ ...s, ...newZh }));
-                                }
-                            } catch (e) {
-                                // silent
+                    (async () => {
+                        try {
+                            const missingIds = new Set<number>();
+                            for (const [id, entry] of Object.entries(filtered)) {
+                                const mid = (entry as any).monster_id;
+                                const hasName = entry && entry.name && entry.name !== "Unknown";
+                                if (!hasName && mid) missingIds.add(Number(mid));
                             }
-                        })();
-                    } else {
-                        setMonsters({});
-                    }
-                    setIsLoading(false);
+                            if (missingIds.size === 0) return;
+
+                            const newZh: Record<number, string> = {};
+                            for (const mid of missingIds) {
+                                const key = `monsters.${mid}`;
+                                const zh = await translateForLang("zh", key, null);
+                                if (zh) newZh[mid] = zh;
+                            }
+                            if (Object.keys(newZh).length > 0) {
+                                setZhNames((s) => ({ ...s, ...newZh }));
+                            }
+                        } catch (e) {
+                        }
+                    })();
+                } else {
+                    setMonsters({});
                 }
+                setIsLoading(false);
             } catch (err: any) {
-                console.error("Failed to fetch enemies", err);
+                console.error("Failed to process monster data", err);
                 if (mounted) setError(String(err));
             }
-        };
+        });
 
-        fetchEnemies();
-        const iv = setInterval(fetchEnemies, 100);
         return () => {
             mounted = false;
-            clearInterval(iv);
+            if (unsubscribe) unsubscribe();
         };
-    }, []);
+    }, [on]);
 
     useEffect(() => {
         if (!window.electronAPI?.resizeWindowToContent) return;
@@ -135,9 +132,7 @@ export default function MonstersApp(): React.JSX.Element {
                         <div className="text-sm font-semibold">Monsters ({Object.keys(monsters).length})</div>
                         <div className="flex items-center gap-2">
                             <label className="text-xs">Sort:</label>
-                            {/* Styled dropdown matching DevicePicker */}
                             <div className="min-w-[140px]">
-                                {/* lazy load custom dropdown */}
                                 <SortDropdown value={sortKey} onChange={(v) => setSortKey(v as any)} />
                             </div>
                             <button onClick={() => setSortDesc((s) => !s)} className="p-1">{sortDesc ? "Desc" : "Asc"}</button>
@@ -174,31 +169,15 @@ export default function MonstersApp(): React.JSX.Element {
                                     return sortDesc ? bi - ai : ai - bi;
                                 })
                                 .map((m) => {
-                                            // Prefer localized monster name when monster_id is provided.
-                                            // The server now returns `monster_id` when available. Use
-                                            // the translations system (loaded elsewhere in the app)
-                                            // to resolve monsters.<id> into the user's language.
-                                            let displayName: string;
-                                            if (m?.name && m.name !== "Unknown") {
-                                                displayName = (m as any).monster_id
-                                                    ? t(`monsters.${(m as any).monster_id}`, m?.name ?? "Unknown")
-                                                    : m.name;
-                                            } else if ((m as any).monster_id && zhNames[(m as any).monster_id]) {
-                                                displayName = zhNames[(m as any).monster_id];
-                                            } else if ((m as any).monster_id) {
-                                                // fallback to current-language translation (may be english) or raw name
-                                                displayName = t(`monsters.${(m as any).monster_id}`, m?.name ?? "Unknown");
-                                            } else {
-                                                displayName = m?.name ?? "Unknown";
-                                            }
-                                            const pct = m.max_hp && m.hp ? Math.max(0, Math.min(1, (m.hp / m.max_hp))) : null;
+                                    const displayName = `${t(`monsters.${m.monster_id}`, m?.name ?? "Unknown")} (${m.monster_id})`;
+                                    const pct = m.max_hp && m.hp ? Math.max(0, Math.min(1, (m.hp / m.max_hp))) : null;
                                     return (
                                         <tr key={m.id} style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                                            <td style={{ padding: 6 }}>{m.id}</td>
-                                                    <td style={{ padding: 6 }}>{displayName}</td>
-                                            <td style={{ padding: 6, textAlign: "right" }}>{m?.hp ?? "-"}</td>
-                                            <td style={{ padding: 6, textAlign: "right" }}>{m?.max_hp ?? "-"}</td>
-                                            <td style={{ padding: 6, textAlign: "right", width: 160 }}>
+                                            <td className="p-2">{m.id}</td>
+                                            <td className="p-2">{displayName}</td>
+                                            <td className="p-2 text-right">{m?.hp ?? "-"}</td>
+                                            <td className="p-2 text-right">{m?.max_hp ?? "-"}</td>
+                                            <td className="p-2 text-right min-w-[160px]">
                                                 {pct === null ? (
                                                     "-"
                                                 ) : (

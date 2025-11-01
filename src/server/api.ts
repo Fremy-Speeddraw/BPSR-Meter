@@ -412,6 +412,7 @@ function initializeApi(
         const translationPath = process.env.NODE_ENV === 'development' ?
             path.join(__dirname, "..", "..", "translations", `${lang}.json`) :
             path.join(__dirname, "translations", `${lang}.json`);
+
         try {
             const data = await fsPromises.readFile(translationPath, "utf8");
             res.json({
@@ -722,6 +723,255 @@ function initializeApi(
     io.on("connection", (socket) => {
         console.log("WebSocket client connected: " + socket.id);
 
+        // Handle client requests via Socket.IO
+        socket.on("getPlayerData", (callback) => {
+            const userData = userDataManager.getAllUsersData();
+            const data: ApiResponse = {
+                code: 0,
+                user: userData,
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
+            };
+            callback(data);
+        });
+
+        socket.on("getSoloUser", (callback) => {
+            const soloData = userDataManager.getSoloUserData();
+            const data: ApiResponse = {
+                code: 0,
+                user: soloData,
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
+            };
+            callback(data);
+        });
+
+        socket.on("getSkills", (callback) => {
+            const userData = userDataManager.getAllUsersData();
+            const skillsData: Record<string, any> = {};
+
+            for (const [uid, user] of Object.entries(userData)) {
+                if (
+                    (user.total_damage && user.total_damage.total > 0) ||
+                    user.taken_damage > 0 ||
+                    (user.total_healing && user.total_healing.total > 0)
+                ) {
+                    skillsData[uid] = userDataManager.getUserSkillData(
+                        parseInt(uid),
+                    );
+                }
+            }
+
+            const data: ApiResponse = {
+                code: 0,
+                data: { skills: skillsData },
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
+            };
+            callback(data);
+        });
+
+        socket.on("getSettings", (callback) => {
+            callback({ code: 0, data: globalSettings });
+        });
+
+        socket.on("updateSettings", async (newSettings, callback) => {
+            Object.assign(globalSettings, newSettings);
+            await fsPromises.writeFile(SETTINGS_PATH, JSON.stringify(globalSettings, null, 4), "utf8");
+            callback({ code: 0, data: globalSettings });
+        });
+
+        socket.on("resetStatistics", async (callback) => {
+            await userDataManager.resetStatistics();
+            console.log("Statistics reset (keeping player info)!");
+            callback({ code: 0, msg: "Statistics reset!" });
+        });
+
+        socket.on("togglePause", async (data, callback) => {
+            const { paused } = data;
+            globalSettings.isPaused = !!paused;
+            const now = Date.now();
+            if (globalSettings.isPaused) {
+                globalSettings.lastPausedAt = now;
+            } else {
+                globalSettings.lastResumedAt = now;
+            }
+            console.log(
+                `Statistics ${globalSettings.isPaused ? "paused" : "resumed"}!`,
+            );
+
+            try {
+                await fsPromises.writeFile(
+                    SETTINGS_PATH,
+                    JSON.stringify(globalSettings, null, 4),
+                    "utf8",
+                );
+            } catch (err) {
+                console.error(
+                    "Failed to persist settings after pause toggle:",
+                    err,
+                );
+            }
+
+            callback({
+                code: 0,
+                msg: `Statistics ${globalSettings.isPaused ? "paused" : "resumed"}!`,
+                paused: globalSettings.isPaused,
+                lastPausedAt: globalSettings.lastPausedAt || null,
+                lastResumedAt: globalSettings.lastResumedAt || null,
+            });
+        });
+
+        socket.on("getPauseState", (callback) => {
+            callback({
+                code: 0,
+                paused: globalSettings.isPaused,
+            });
+        });
+
+        socket.on("changeLanguage", async (data, callback) => {
+            const { language } = data;
+
+            if (
+                !language ||
+                !globalSettings.availableLanguages?.includes(language)
+            ) {
+                callback({
+                    code: 1,
+                    msg: "Invalid language",
+                });
+                return;
+            }
+
+            globalSettings.language = language;
+            await fsPromises.writeFile(
+                SETTINGS_PATH,
+                JSON.stringify(globalSettings, null, 4),
+                "utf8",
+            );
+
+            callback({
+                code: 0,
+                data: { language: globalSettings.language },
+            });
+        });
+
+        socket.on("getManualGroup", (callback) => {
+            callback({
+                code: 0,
+                data: {
+                    enabled: globalSettings.manualGroup?.enabled || false,
+                    members: globalSettings.manualGroup?.members || [],
+                },
+            });
+        });
+
+        socket.on("updateManualGroup", async (data, callback) => {
+            if (!globalSettings.manualGroup) {
+                globalSettings.manualGroup = { enabled: false, members: [] };
+            }
+
+            const { enabled, members } = data;
+            globalSettings.manualGroup.enabled = enabled;
+            globalSettings.manualGroup.members = members;
+
+            await fsPromises.writeFile(
+                SETTINGS_PATH,
+                JSON.stringify(globalSettings, null, 4),
+                "utf8",
+            );
+
+            callback({
+                code: 0,
+                data: {
+                    enabled: globalSettings.manualGroup.enabled,
+                    members: globalSettings.manualGroup.members,
+                },
+            });
+        });
+
+        socket.on("clearManualGroup", async (callback) => {
+            if (!globalSettings.manualGroup) {
+                globalSettings.manualGroup = { enabled: false, members: [] };
+            }
+
+            globalSettings.manualGroup.members = [];
+            await fsPromises.writeFile(
+                SETTINGS_PATH,
+                JSON.stringify(globalSettings, null, 4),
+                "utf8",
+            );
+
+            console.log("Cleared manual group members");
+
+            callback({
+                code: 0,
+                data: {
+                    enabled: globalSettings.manualGroup.enabled,
+                    members: [],
+                },
+            });
+        });
+
+        socket.on("getPlayerRegistry", (callback) => {
+            callback({
+                code: 0,
+                data: playerRegistry || {},
+            });
+        });
+
+        socket.on("addToPlayerRegistry", async (data, callback) => {
+            const { uuid, name } = data;
+
+            if (!uuid || !name) {
+                callback({
+                    code: 1,
+                    msg: "UUID and name are required",
+                });
+                return;
+            }
+
+            playerRegistry[uuid] = { name };
+            await fsPromises.writeFile(
+                PLAYER_REGISTRY_PATH,
+                JSON.stringify(playerRegistry, null, 4),
+                "utf8",
+            );
+
+            console.log(`Saved player: ${uuid} -> ${name}`);
+
+            callback({
+                code: 0,
+                data: playerRegistry,
+            });
+        });
+
+        socket.on("deleteFromPlayerRegistry", async (data, callback) => {
+            const { uid } = data;
+
+            if (!uid) {
+                callback({
+                    code: 1,
+                    msg: "UID is required",
+                });
+                return;
+            }
+
+            delete playerRegistry[uid];
+            await fsPromises.writeFile(
+                PLAYER_REGISTRY_PATH,
+                JSON.stringify(playerRegistry, null, 4),
+                "utf8",
+            );
+
+            console.log(`Deleted player: ${uid}`);
+
+            callback({
+                code: 0,
+                data: playerRegistry,
+            });
+        });
+
         socket.on("disconnect", () => {
             console.log("WebSocket client disconnected: " + socket.id);
         });
@@ -733,9 +983,51 @@ function initializeApi(
             const data: ApiResponse = {
                 code: 0,
                 user: userData,
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
             };
-            io.emit("data", data);
+            io.emit("userData", data);
+
+            const soloData = userDataManager.getSoloUserData();
+            const sdata: ApiResponse = {
+                code: 0,
+                user: soloData,
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
+            };
+            io.emit("soloUser", sdata);
+
+            // skill data
+            const skillData: Record<string, any> = {};
+
+            for (const [uid, user] of Object.entries(userData)) {
+                if (
+                    (user.total_damage && user.total_damage.total > 0) ||
+                    user.taken_damage > 0 ||
+                    (user.total_healing && user.total_healing.total > 0)
+                ) {
+                    skillData[uid] = userDataManager.getUserSkillData(
+                        parseInt(uid),
+                    );
+                }
+            }
+
+            const skillsData: ApiResponse = {
+                code: 0,
+                data: { skills: skillData },
+                timestamp: Date.now(),
+                startTime: userDataManager.startTime,
+            };
+
+            io.emit("skillData", skillsData);
         }
+
+        const monsterData = userDataManager.getAllEnemiesData();
+        const mdata: ApiResponse = {
+            code: 0,
+            enemy: monsterData,
+        };
+        io.emit("monsterData", mdata);
     }, 100);
 }
 

@@ -58,6 +58,7 @@ export default defineConfig({
                     history: path.resolve(__dirname, 'src/history.html'),
                     device: path.resolve(__dirname, 'src/device.html'),
                     settings: path.resolve(__dirname, 'src/settings.html'),
+                    monsters: path.resolve(__dirname, 'src/monsters.html'),
                 }
             }
         },

@@ -8,9 +8,9 @@ import {
     ClearGroupButton,
 } from "./components";
 import { useGroupState, useAvailablePlayers } from "./hooks";
-import { useWindowControls } from "../shared/hooks";
+import { useWindowControls, useSocket } from "../shared/hooks";
 import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
-import { useTranslations } from "../main/hooks/useTranslations";
+import { useTranslations } from "../shared/hooks/useTranslations";
 
 export function GroupApp(): React.JSX.Element {
     const {
@@ -25,6 +25,7 @@ export function GroupApp(): React.JSX.Element {
         usePlayerRegistry();
 
     const { t } = useTranslations();
+    const { emitWithResponse } = useSocket();
 
     const { availablePlayers } = useAvailablePlayers(playerRegistry);
 
@@ -35,7 +36,6 @@ export function GroupApp(): React.JSX.Element {
             windowType: "group",
         });
 
-    // Handle add player to group
     const handleAddPlayer = useCallback(
         async (uuid: string) => {
             await addMember(uuid);
@@ -43,7 +43,6 @@ export function GroupApp(): React.JSX.Element {
         [addMember],
     );
 
-    // Handle remove player from group
     const handleRemoveMember = useCallback(
         async (uuid: string) => {
             await removeMember(uuid);
@@ -51,12 +50,10 @@ export function GroupApp(): React.JSX.Element {
         [removeMember],
     );
 
-    // Handle clear group with confirmation
     const handleClearGroup = useCallback(async () => {
         await clearGroup();
     }, [clearGroup]);
 
-    // Handle save player to registry
     const handleSaveToRegistry = useCallback(
         async (uid: string, name: string) => {
             const success = await addToRegistry(uid, name);
@@ -67,17 +64,14 @@ export function GroupApp(): React.JSX.Element {
         [addToRegistry],
     );
 
-    // Handle delete player from registry
     const handleDeleteFromRegistry = useCallback(
         async (uid: string) => {
             try {
-                const response = await fetch("/api/player-registry/delete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ uid }),
+                const result = await emitWithResponse({ 
+                    event: "deleteFromPlayerRegistry", 
+                    data: { uid } 
                 });
 
-                const result = await response.json();
                 if (result.code === 0) {
                     console.log(`Deleted player from registry: ${uid}`);
                     await refreshRegistry();
@@ -86,7 +80,7 @@ export function GroupApp(): React.JSX.Element {
                 console.error("Failed to delete player from registry:", error);
             }
         },
-        [refreshRegistry],
+        [emitWithResponse, refreshRegistry],
     );
 
     useEffect(() => {

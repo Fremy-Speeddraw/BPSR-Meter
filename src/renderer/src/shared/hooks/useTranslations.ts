@@ -1,15 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-    loadTranslations,
-    t,
-    translateSkill,
-    translateProfession,
-    getCurrentLanguage,
-} from "../../shared/utils/translations";
-import {
-    fetchSettings,
-    changeLanguage as changeLanguageAPI,
-} from "../../shared/api";
+import { loadTranslations, t, translateSkill, translateProfession, translateMonsterName } from "../utils/translations";
+import { fetchSettings, changeLanguage as changeLanguageAPI } from "../api";
 
 export interface UseTranslationsReturn {
     currentLanguage: string;
@@ -20,6 +11,10 @@ export interface UseTranslationsReturn {
     ) => string;
     translateProfession: (profession: string) => string;
     changeLanguage: (lang: string) => Promise<boolean>;
+    translateMonsterName: (
+        monsterId: number | string,
+        fallback?: string | null,
+    ) => string;
     isLoaded: boolean;
 }
 
@@ -80,6 +75,7 @@ export function useTranslations(): UseTranslationsReturn {
         translateSkill,
         translateProfession,
         changeLanguage,
+        translateMonsterName,
         isLoaded,
     };
 }

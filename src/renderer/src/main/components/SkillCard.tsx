@@ -27,13 +27,11 @@ function SkillCardComponent({
     // Calculate skill DPS
     const duration = (Date.now() - startTime) / 1000;
     const skillDPS = duration > 0 ? skill.totalDamage / duration : 0;
-    const avgDamage =
-        skill.totalCount > 0 ? skill.totalDamage / skill.totalCount : 0;
+    const avgDamage = skill.totalCount > 0 ? skill.totalDamage / skill.totalCount : 0;
 
     // Translate skill name
     const translatedSkillName = translateSkill(skillId, skill.displayName);
-    const skillTypeText =
-        skill.type === "伤害" ? t("ui.skills.damage") : t("ui.skills.healing");
+    const skillTypeText = skill.type === "伤害" ? t("ui.skills.damage") : t("ui.skills.healing");
     const skillTypeClass = skill.type === "伤害" ? "damage" : "healing";
 
     // Calculate crit values

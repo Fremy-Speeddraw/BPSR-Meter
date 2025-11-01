@@ -3,7 +3,7 @@ import { HistoryHeader, HistoryControls, HistoryList, HistoryDetails, SkillModal
 import { useHistoryList, useHistoryDetails, useHistorySettings } from "./hooks";
 import { useWindowControls } from "../shared/hooks";
 import { usePlayerRegistry } from "../main/hooks/usePlayerRegistry";
-import { useTranslations } from "../main/hooks/useTranslations";
+import { useTranslations } from "../shared/hooks/useTranslations";
 
 export function HistoryApp(): React.JSX.Element {
     // Hooks
@@ -40,18 +40,15 @@ export function HistoryApp(): React.JSX.Element {
             windowType: "history",
         });
 
-    // Load history list on mount
     useEffect(() => {
         refreshHistoryList();
     }, [refreshHistoryList]);
 
-    // Refresh player registry periodically
     useEffect(() => {
         const interval = setInterval(refreshRegistry, 10000);
         return () => clearInterval(interval);
     }, [refreshRegistry]);
 
-    // Handle history item selection
     const handleSelectItem = useCallback(
         async (timestamp: string) => {
             await loadDetails(timestamp);
@@ -59,7 +56,6 @@ export function HistoryApp(): React.JSX.Element {
         [loadDetails],
     );
 
-    // Handle view skills button
     const handleViewSkills = useCallback(
         async (timestamp: string, uid: string) => {
             await loadPlayerSkills(timestamp, uid);
@@ -67,7 +63,6 @@ export function HistoryApp(): React.JSX.Element {
         [loadPlayerSkills],
     );
 
-    // Handle refresh button
     const handleRefresh = useCallback(async () => {
         await refreshHistoryList();
     }, [refreshHistoryList]);

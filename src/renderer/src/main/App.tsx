@@ -7,7 +7,7 @@ import { useDataFetching } from "./hooks/useDataFetching";
 import { useElectronIntegration } from "./hooks/useElectronIntegration";
 import { usePlayerRegistry } from "./hooks/usePlayerRegistry";
 import { useManualGroup } from "./hooks/useManualGroup";
-import { useTranslations } from "./hooks/useTranslations";
+import { useTranslations } from "../shared/hooks/useTranslations";
 import { resetStatistics } from "../shared/api";
 import type { ViewMode, SortColumn, SortDirection } from "../shared/types";
 

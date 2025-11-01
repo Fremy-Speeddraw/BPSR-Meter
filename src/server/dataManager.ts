@@ -749,12 +749,20 @@ export class UserDataManager {
             ...this.enemyCache.hp.keys(),
             ...this.enemyCache.maxHp.keys(),
         ]);
-        //const now = Date.now();
-        //const STALE_MS = 3000;
+        const now = Date.now();
+        const STALE_MS = 4500;
         enemyIds.forEach((id) => {
             const last = this.enemyCache.lastSeen.get(id) || 0;
-            const hpVal = this.enemyCache.hp.get(id);
-            //if (now - last > STALE_MS) return;
+            let hpVal = this.enemyCache.hp.get(id);
+
+            // if enemy data is stale, and hpVal hasnt been updated set hp to 0 if hp threshhold is less than 10%
+            if (now - last > STALE_MS && hpVal !== undefined && this.enemyCache.maxHp.has(id)) {
+                const maxHpVal = this.enemyCache.maxHp.get(id)!;
+                if (maxHpVal > 0 && (hpVal / maxHpVal) < 0.10) {
+                    hpVal = 0;
+                }
+            }
+
             result[id] = {
                 name: this.enemyCache.name.get(id),
                 hp: hpVal,

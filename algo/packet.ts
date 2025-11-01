@@ -7,12 +7,6 @@ import path from 'path';
 import type { Logger } from 'winston';
 import type { UserDataManager } from '../src/server/dataManager';
 
-// Note: we no longer load a hardcoded translation here. The renderer will
-// localize monster names using the selected language. PacketProcessor will
-// record the monster attr id (when provided) into the enemy cache so the
-// UI can translate via the translations API.
-const TRANSLATIONS_DIR = path.join(__dirname, "translations");
-
 class BinaryReader {
     public buffer: Buffer;
     public offset: number;

@@ -118,6 +118,25 @@ export function translateSkill(
     return translations.skills[skillIdStr] || fallback || skillIdStr;
 }
 
+export function translateMonsterName(
+    monsterId: number | string,
+    fallback: string | null = null,
+): string {
+    if (monsterId === null || monsterId === undefined) {
+        return fallback || "Unknown";
+    }
+
+    const monsterIdStr = String(monsterId);
+
+    console.log(translations);
+
+    if (!translations.monsters) {
+        return fallback || monsterIdStr;
+    }
+
+    return translations.monsters[monsterIdStr] || fallback || monsterIdStr;
+}
+
 /**
  * Translate a profession name from Chinese to localized name
  * @param profession - Chinese profession name

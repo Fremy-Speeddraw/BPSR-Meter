@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "/css/style.css";
 import { useWindowControls } from "../shared/hooks";
-import { useTranslations } from "../main/hooks/useTranslations";
+import { useTranslations } from "../shared/hooks/useTranslations";
 
 const DEFAULT_KEYS = [
     "dps",
