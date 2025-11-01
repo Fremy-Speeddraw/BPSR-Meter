@@ -27,11 +27,9 @@ export function HistoryApp(): React.JSX.Element {
         closeSkillModal,
     } = useHistoryDetails();
 
-    const { isHistorySavingEnabled, toggleHistorySaving } =
-        useHistorySettings();
+    const { isHistorySavingEnabled, toggleHistorySaving } = useHistorySettings();
 
-    const { playerRegistry, getPlayerName, refreshRegistry } =
-        usePlayerRegistry();
+    const { getPlayerName, refreshRegistry } = usePlayerRegistry();
 
     const { translateSkill, translateProfession, t } = useTranslations();
 

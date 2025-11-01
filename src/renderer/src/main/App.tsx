@@ -174,21 +174,19 @@ export function MainApp(): React.JSX.Element {
     );
 
     const handleClose = useCallback(() => {
-        if (window.electronAPI) {
-            window.electronAPI.closeWindow();
-        }
+        window.electronAPI.closeWindow();
     }, []);
 
     const handleOpenGroup = useCallback(() => {
-        if (window.electronAPI) {
-            window.electronAPI.openGroupWindow();
-        }
+        window.electronAPI.openGroupWindow();
     }, []);
 
     const handleOpenHistory = useCallback(() => {
-        if (window.electronAPI) {
-            window.electronAPI.openHistoryWindow();
-        }
+        window.electronAPI.openHistoryWindow();
+    }, []);
+
+    const handleOpenMonsters = useCallback(() => {
+        window.electronAPI.openMonstersWindow();
     }, []);
 
     useEffect(() => {
@@ -249,6 +247,7 @@ export function MainApp(): React.JSX.Element {
                 onLanguageToggle={handleLanguageToggle}
                 onOpenGroup={handleOpenGroup}
                 onOpenHistory={handleOpenHistory}
+                onOpenMonsters={handleOpenMonsters}
                 onZoomIn={zoomIn}
                 onZoomOut={zoomOut}
                 visibleColumns={visibleColumns}

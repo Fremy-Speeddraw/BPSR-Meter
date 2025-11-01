@@ -33,6 +33,7 @@ export interface ControlBarProps {
     // Window controls
     onOpenGroup: () => void;
     onOpenHistory: () => void;
+    onOpenMonsters?: () => void;
     onZoomIn: () => void;
     onZoomOut: () => void;
 
@@ -65,6 +66,7 @@ export function ControlBar({
     onLanguageToggle,
     onOpenGroup,
     onOpenHistory,
+    onOpenMonsters,
     onZoomIn,
     onZoomOut,
     t,
@@ -108,6 +110,22 @@ export function ControlBar({
                 title={t("ui.buttons.openGroup")}
             >
                 <i className="fa-solid fa-users"></i>
+            </button>
+
+            {/* Monsters Button */}
+            <button
+                id="monsters-btn"
+                className="control-button advanced-lite-btn"
+                onClick={() => {
+                    if ((window as any).electronAPI && (window as any).electronAPI.openMonstersWindow) {
+                        (window as any).electronAPI.openMonstersWindow();
+                    } else if (onOpenMonsters) {
+                        onOpenMonsters();
+                    }
+                }}
+                title={t("ui.buttons.openMonsters", "Open Monsters")}
+            >
+                <i className="fa-solid fa-dragon"></i>
             </button>
 
             {/* Device Picker Button */}

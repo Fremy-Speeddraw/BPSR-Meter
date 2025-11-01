@@ -7,8 +7,11 @@ import path from 'path';
 import type { Logger } from 'winston';
 import type { UserDataManager } from '../src/server/dataManager';
 
+// Note: we no longer load a hardcoded translation here. The renderer will
+// localize monster names using the selected language. PacketProcessor will
+// record the monster attr id (when provided) into the enemy cache so the
+// UI can translate via the translations API.
 const TRANSLATIONS_DIR = path.join(__dirname, "translations");
-const monsterNames = JSON.parse(fs.readFileSync(TRANSLATIONS_DIR + "/zh.json", "utf-8")).monsters;
 
 class BinaryReader {
     public buffer: Buffer;
@@ -100,7 +103,7 @@ const NotifyMethod = {
     SyncNearEntities: 0x00000006,
     SyncContainerData: 0x00000015,
     SyncContainerDirtyData: 0x00000016,
-    SyncServerTime: 0x0000002b, // También contiene CharTeam (TeamId, LeaderId)
+    SyncServerTime: 0x0000002b,
     SyncNearDeltaInfo: 0x0000002d,
     SyncToMeDeltaInfo: 0x0000002e,
 };
@@ -480,6 +483,16 @@ class PacketProcessor {
 
             if (!vData.CharBase) return;
             const charBase = vData.CharBase;
+            const sceneData = vData.SceneData;
+
+            if (sceneData) {
+                this.userDataManager.setSceneInfo(playerUid, {
+                    LineId: sceneData.LineId,
+                    MapId: sceneData.MapId,
+                });
+
+                this.userDataManager.setLineId(playerUid, sceneData.LineId);
+            }
 
             if (charBase.Name) {
                 this.logger.debug(`_processSyncContainerData: Setting player name for UID ${playerUid}: ${charBase.Name}`);
@@ -653,23 +666,24 @@ class PacketProcessor {
                 case AttrType.AttrName:
                     const enemyName = reader.string();
                     this.userDataManager.enemyCache.name.set(enemyUid, enemyName);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
                     this.logger.info(`Found monster name ${enemyName} for id ${enemyUid}`);
                     break;
                 case AttrType.AttrId:
                     const attrId = reader.int32();
-                    const name = monsterNames[attrId];
-                    if (name) {
-                        this.logger.info(`Found moster name ${name} for id ${enemyUid}`);
-                        this.userDataManager.enemyCache.name.set(enemyUid, name);
-                    }
+                    this.logger.info(`Found monster attrId ${attrId} for id ${enemyUid}`);
+                    this.userDataManager.enemyCache.monsterId.set(enemyUid, attrId);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
                     break;
                 case AttrType.AttrHp:
                     const enemyHp = reader.int32();
                     this.userDataManager.enemyCache.hp.set(enemyUid, enemyHp);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
                     break;
                 case AttrType.AttrMaxHp:
                     const enemyMaxHp = reader.int32();
                     this.userDataManager.enemyCache.maxHp.set(enemyUid, enemyMaxHp);
+                    this.userDataManager.enemyCache.lastSeen.set(enemyUid, Date.now());
                     break;
                 default:
                     // this.logger.debug(`Found unknown attrId ${attr.Id} for E${enemyUid} ${attr.RawData.toString('base64')}`);

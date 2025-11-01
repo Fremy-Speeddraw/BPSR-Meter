@@ -295,6 +295,7 @@ export class UserData {
     fightPoint: number;
     subProfession: string;
     attr: Record<string, any>;
+    lineId: number;
 
     constructor(uid: number) {
         this.uid = uid;
@@ -308,6 +309,7 @@ export class UserData {
         this.fightPoint = 0;
         this.subProfession = "";
         this.attr = {};
+        this.lineId = 0;
     }
 
     addDamage(
@@ -467,6 +469,10 @@ export class UserData {
         this.attr[key] = value;
     }
 
+    setLineId(lineId: number): void {
+        this.lineId = lineId;
+    }
+
     reset(): void {
         this.damageStats.reset();
         this.healingStats.reset();
@@ -486,6 +492,13 @@ interface EnemyCache {
     name: Map<string, string>;
     hp: Map<string, number>;
     maxHp: Map<string, number>;
+    monsterId: Map<string, number>;
+    lastSeen: Map<string, number>;
+}
+
+interface SceneInfo {
+    MapId: number | null;
+    LineId: number | null;
 }
 
 export class UserDataManager {
@@ -501,6 +514,7 @@ export class UserDataManager {
     enemyCache: EnemyCache;
     localPlayerUid: number | null;
     lastLogTime?: number;
+    sceneData: Map<string, SceneInfo>;
 
     constructor(logger: Logger, globalSettings: GlobalSettings) {
         this.logger = logger;
@@ -516,7 +530,10 @@ export class UserDataManager {
             name: new Map(),
             hp: new Map(),
             maxHp: new Map(),
+            monsterId: new Map(),
+            lastSeen: new Map(),
         };
+        this.sceneData = new Map();
         this.localPlayerUid = null;
     }
 
@@ -526,9 +543,7 @@ export class UserDataManager {
         }
     }
 
-    async initialize(): Promise<void> {
-        // No cache loading needed
-    }
+    async initialize(): Promise<void> {}
 
     getUser(uid: number): UserData {
         if (!this.users.has(uid)) {
@@ -555,6 +570,12 @@ export class UserDataManager {
                     user.setAttrKV("max_hp", cachedData.maxHp);
                 }
             }
+
+            if (this.sceneData.has(uidStr)) {
+                const sceneData = this.sceneData.get(uidStr);
+                user.setLineId(sceneData?.LineId);
+            }
+
             if (this.hpCache.has(uid)) {
                 user.setAttrKV("hp", this.hpCache.get(uid));
             }
@@ -659,6 +680,15 @@ export class UserDataManager {
         }
     }
 
+    setSceneInfo(uid: number, sceneInfo: SceneInfo): void {
+        this.sceneData.set(String(uid), sceneInfo);
+    }
+
+    setLineId(uid: number, lineId: number): void {
+        const user = this.getUser(uid);
+        user.setLineId(lineId);
+    }
+
     setFightPoint(uid: number, fightPoint: number): void {
         const user = this.getUser(uid);
         if (user.fightPoint != fightPoint) {
@@ -685,9 +715,7 @@ export class UserDataManager {
         return {
             uid: user.uid,
             name: user.name,
-            profession:
-                user.profession +
-                (user.subProfession ? `-${user.subProfession}` : ""),
+            profession: user.profession + (user.subProfession ? `-${user.subProfession}` : ""),
             skills: user.getSkillSummary(),
             attr: user.attr,
         };
@@ -721,11 +749,18 @@ export class UserDataManager {
             ...this.enemyCache.hp.keys(),
             ...this.enemyCache.maxHp.keys(),
         ]);
+        //const now = Date.now();
+        //const STALE_MS = 3000;
         enemyIds.forEach((id) => {
+            const last = this.enemyCache.lastSeen.get(id) || 0;
+            const hpVal = this.enemyCache.hp.get(id);
+            //if (now - last > STALE_MS) return;
             result[id] = {
                 name: this.enemyCache.name.get(id),
-                hp: this.enemyCache.hp.get(id),
+                hp: hpVal,
                 max_hp: this.enemyCache.maxHp.get(id),
+                monster_id: this.enemyCache.monsterId.get(id) ?? null,
+                last_seen: this.enemyCache.lastSeen.get(id) ?? null,
             };
         });
         return result;
@@ -735,6 +770,8 @@ export class UserDataManager {
         this.enemyCache.name.clear();
         this.enemyCache.hp.clear();
         this.enemyCache.maxHp.clear();
+        this.enemyCache.monsterId.clear();
+        this.enemyCache.lastSeen.clear();
     }
 
     async clearAll(): Promise<void> {

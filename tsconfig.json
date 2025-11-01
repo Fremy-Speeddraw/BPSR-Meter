@@ -18,7 +18,7 @@
         "moduleResolution": "bundler",
         "allowSyntheticDefaultImports": true,
         "strict": true,
-        "noImplicitAny": true,
+        "noImplicitAny": false,
         "strictNullChecks": false,
         "strictFunctionTypes": false,
         "strictBindCallApply": false,

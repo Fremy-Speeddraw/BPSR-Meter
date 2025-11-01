@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import MainApp from "./main/App";
 import GroupApp from "./group/App";
+import MonstersApp from "./monsters/App";
 import HistoryApp from "./history/App";
 import DeviceApp from "./device/App";
 import SettingsApp from "./settings/App";
@@ -15,6 +16,8 @@ const renderApp = () => {
 
     if (path.includes("group.html")) {
         return <GroupApp />;
+    } else if (path.includes("monsters.html")) {
+        return <MonstersApp />;
     } else if (path.includes("history.html")) {
         return <HistoryApp />;
     } else if (path.includes("device.html")) {

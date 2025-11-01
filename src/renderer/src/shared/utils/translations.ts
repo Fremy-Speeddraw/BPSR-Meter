@@ -147,7 +147,45 @@ export function getTranslations(): Translations {
     return translations;
 }
 
-// Debug functions (development only)
+const otherTranslationsCache: Record<string, Translations | null> = {};
+
+export async function loadTranslationsFor(lang: string): Promise<Translations | null> {
+    if (!lang || typeof lang !== "string") return null;
+
+    if (otherTranslationsCache[lang]) return otherTranslationsCache[lang];
+
+    try {
+        const response = await fetch(`/api/translations/${lang}`);
+        if (!response.ok) return null;
+        const result: ApiResponse<Translations> = await response.json();
+        if (result.code === 0 && result.data) {
+            otherTranslationsCache[lang] = result.data;
+            return result.data;
+        }
+    } catch (e) {
+        console.error("Failed to load translations for", lang, e);
+    }
+    otherTranslationsCache[lang] = null;
+    return null;
+}
+
+export async function translateForLang(lang: string, key: string, fallback: string | null = null): Promise<string | null> {
+    if (!lang || !key) return fallback;
+    const tr = await loadTranslationsFor(lang);
+    if (!tr) return fallback;
+
+    const keys = key.split('.');
+    let value: any = tr;
+    for (const k of keys) {
+        if (value && typeof value === 'object' && k in value) {
+            value = value[k];
+        } else {
+            return fallback;
+        }
+    }
+    return value || fallback;
+}
+
 const isDevelopment = process.env.NODE_ENV === "development";
 
 if (isDevelopment && typeof window !== "undefined") {

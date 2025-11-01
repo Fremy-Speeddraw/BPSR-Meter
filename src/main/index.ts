@@ -14,14 +14,15 @@ const WINDOW_CONFIGS = {
     group: { defaultSize: { width: 480, height: 530 }, minSize: { width: 400, height: 450 }, resizable: true },
     history: { defaultSize: { width: 800, height: 600 }, minSize: { width: 800, height: 600 }, resizable: true },
     device: { defaultSize: { width: 600, height: 400 }, minSize: { width: 400, height: 300 }, resizable: true },
-    settings: { defaultSize: { width: 420, height: 520 }, minSize: { width: 360, height: 420 }, resizable: true }
+    settings: { defaultSize: { width: 420, height: 520 }, minSize: { width: 360, height: 420 }, resizable: true },
+    monsters: { defaultSize: { width: 480, height: 600 }, minSize: { width: 360, height: 300 }, resizable: true }
 } as const;
 
 type WindowType = keyof typeof WINDOW_CONFIGS;
 type WindowSize = { width: number; height: number; scale?: number };
 
 const windows: Record<WindowType, BrowserWindow | null> = {
-    main: null, group: null, history: null, device: null, settings: null
+    main: null, group: null, history: null, device: null, settings: null, monsters: null
 };
 
 const lastWindowSizes: Record<WindowType, WindowSize> = {
@@ -29,7 +30,8 @@ const lastWindowSizes: Record<WindowType, WindowSize> = {
     group: { width: 480, height: 530, scale: 1 },
     history: { width: 800, height: 600, scale: 1 },
     device: { width: 600, height: 400, scale: 1 },
-    settings: { width: 420, height: 520, scale: 1 }
+    settings: { width: 420, height: 520, scale: 1 },
+    monsters: { width: 480, height: 600, scale: 1 }
 };
 
 let serverProcess: ChildProcess | null = null;
@@ -261,6 +263,7 @@ function setupIpcHandlers() {
     ipcMain.on("open-history-window", () => createOrFocusWindow("history"));
     ipcMain.on("open-device-window", () => createOrFocusWindow("device"));
     ipcMain.on("open-settings-window", () => createOrFocusWindow("settings"));
+    ipcMain.on("open-monsters-window", () => createOrFocusWindow("monsters"));
 
     ipcMain.on("update-visible-columns", (_event: IpcMainEvent, cols: Record<string, boolean>) => {
         if (windows.main && !windows.main.isDestroyed()) {

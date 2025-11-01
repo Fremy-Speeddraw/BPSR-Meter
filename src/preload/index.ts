@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     openHistoryWindow: () => ipcRenderer.send("open-history-window"),
     openDeviceWindow: () => ipcRenderer.send("open-device-window"),
     openSettingsWindow: () => ipcRenderer.send("open-settings-window"),
+    openMonstersWindow: () => ipcRenderer.send("open-monsters-window"),
     onWindowShown: (callback: () => void) => ipcRenderer.on("window-shown", () => callback()),
     saveWindowSize: (
         windowType: string,
